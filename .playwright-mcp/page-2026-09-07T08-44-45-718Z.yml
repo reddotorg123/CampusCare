@@ -1,0 +1,166 @@
+- generic [ref=f3e3]:
+  - banner [ref=f3e4]:
+    - generic [ref=f3e5]:
+      - generic "NetLab Managed IT Services" [ref=f3e6]
+      - generic [ref=f3e11]:
+        - button "Select Client School" [ref=f3e12] [cursor=pointer]:
+          - generic [ref=f3e13]: OIS
+          - generic [ref=f3e14]: Oakridge International School
+        - button "Select Lab" [ref=f3e17] [cursor=pointer]:
+          - generic: CS & Coding Lab 1
+          - generic [ref=f3e18]: 🏛️ U-Shape Perimeter
+    - generic [ref=f3e20]:
+      - button "🎓 Teach Me" [ref=f3e21] [cursor=pointer]
+      - button "Admin" [ref=f3e25] [cursor=pointer]
+      - button "Design Lab Layout" [ref=f3e29] [cursor=pointer]
+      - button "Engineer Visits" [ref=f3e31] [cursor=pointer]
+      - button "Toggle Theme" [ref=f3e36] [cursor=pointer]
+  - main [ref=f3e39]:
+    - generic [ref=f3e40]:
+      - generic [ref=f3e41]:
+        - generic [ref=f3e42]:
+          - button "🏢 Dual-Bank Grid" [ref=f3e43] [cursor=pointer]:
+            - generic [ref=f3e44]: 🏢
+            - generic [ref=f3e45]: Dual-Bank Grid
+          - generic [ref=f3e46]: Room 204, Tech Wing • 18 Devices
+        - generic [ref=f3e47]:
+          - button "All Desks" [ref=f3e48] [cursor=pointer]
+          - generic [ref=f3e52]:
+            - button "Zoom Out" [ref=f3e53] [cursor=pointer]
+            - button "FIT" [ref=f3e57] [cursor=pointer]
+            - button "Zoom In" [ref=f3e58] [cursor=pointer]
+      - img [ref=f3e63]:
+        - generic [ref=f3e65]:
+          - generic [ref=f3e68]: 🖥️ TEACHER PODIUM & RACK
+          - generic [ref=f3e71]: 🖨️ PRINT STATION BAY
+          - generic [ref=f3e74]: STUDENT POD A
+          - generic [ref=f3e77]: STUDENT POD B
+        - generic [ref=f3e78]: 🚪 MAIN LAB ENTRANCE
+        - generic [ref=f3e82]:
+          - generic [ref=f3e84] [cursor=pointer]:
+            - generic [ref=f3e86]: Teacher
+            - generic: TEACHER-PC
+          - generic [ref=f3e98] [cursor=pointer]:
+            - generic [ref=f3e100]: Rack
+            - generic: SW-LAB1-2960
+          - generic [ref=f3e114] [cursor=pointer]:
+            - generic [ref=f3e116]: Laser-01
+            - generic: PRN-LAB1-01
+            - generic [ref=f3e126]: "1"
+          - generic [ref=f3e130] [cursor=pointer]:
+            - generic [ref=f3e132]: Color-02
+            - generic: PRN-LAB1-02
+            - generic [ref=f3e142]: "1"
+          - generic [ref=f3e146] [cursor=pointer]:
+            - generic [ref=f3e148]: B01
+            - generic: PC-L1-01
+          - generic [ref=f3e160] [cursor=pointer]:
+            - generic [ref=f3e162]: B02
+            - generic: PC-L1-02
+          - generic [ref=f3e174] [cursor=pointer]:
+            - generic [ref=f3e176]: B03
+            - generic: PC-L1-03
+          - generic [ref=f3e188] [cursor=pointer]:
+            - generic [ref=f3e190]: B04
+            - generic: PC-L1-04
+            - generic [ref=f3e201]: "1"
+          - generic [ref=f3e205] [cursor=pointer]:
+            - generic [ref=f3e207]: B05
+            - generic: PC-L1-05
+          - generic [ref=f3e219] [cursor=pointer]:
+            - generic [ref=f3e221]: B06
+            - generic: PC-L1-06
+          - generic [ref=f3e233] [cursor=pointer]:
+            - generic [ref=f3e235]: B07
+            - generic: PC-L1-07
+          - generic [ref=f3e247] [cursor=pointer]:
+            - generic [ref=f3e249]: B08
+            - generic: PC-L1-08
+          - generic [ref=f3e261] [cursor=pointer]:
+            - generic [ref=f3e263]: B09
+            - generic: PC-L1-09
+            - generic [ref=f3e274]: "1"
+          - generic [ref=f3e278] [cursor=pointer]:
+            - generic [ref=f3e280]: B10
+            - generic: PC-L1-10
+          - generic [ref=f3e292] [cursor=pointer]:
+            - generic [ref=f3e294]: B11
+            - generic: PC-L1-11
+          - generic [ref=f3e306] [cursor=pointer]:
+            - generic [ref=f3e308]: B12
+            - generic: PC-L1-12
+            - generic [ref=f3e319]: "1"
+          - generic [ref=f3e323] [cursor=pointer]:
+            - generic [ref=f3e325]: B13
+            - generic: PC-L1-13
+          - generic [ref=f3e337] [cursor=pointer]:
+            - generic [ref=f3e339]: B14
+            - generic: PC-L1-14
+  - generic [ref=f3e382]:
+    - generic [ref=f3e383]:
+      - generic [ref=f3e388]:
+        - heading "Multi-School & Room Arrangements" [level=2] [ref=f3e389]
+        - text: Masterclass for IT Support & MSP Engineers
+      - button "Close Guide" [ref=f3e390] [cursor=pointer]
+    - generic [ref=f3e394]:
+      - button "🏛️ 4 Room Setups" [ref=f3e395] [cursor=pointer]
+      - button "🏫 Client Schools" [ref=f3e397] [cursor=pointer]
+      - button "⚡ 4 to 100 PCs" [ref=f3e399] [cursor=pointer]
+      - button "👥 Dual-Role" [ref=f3e401] [cursor=pointer]
+    - generic [ref=f3e404]:
+      - generic [ref=f3e405]:
+        - text: Educational Architecture & Arrangements
+        - paragraph [ref=f3e406]:
+          - text: Schools arrange their computer labs differently depending on
+          - strong [ref=f3e407]: instructor supervision
+          - text: ","
+          - strong [ref=f3e408]: cabling raceways
+          - text: ", and"
+          - strong [ref=f3e409]: class pedagogical goals
+          - text: ". Tap each setup below to explore:"
+      - generic [ref=f3e410]:
+        - button "🏛️ U-Shape Perimeter 360° Teacher Screen Observation" [ref=f3e411] [cursor=pointer]:
+          - generic [ref=f3e412]: 🏛️
+          - generic [ref=f3e415]: U-Shape Perimeter
+          - generic [ref=f3e416]: 360° Teacher Screen Observation
+        - button "📐 Forward Rows Front Board Direct Lecture & Testing" [active] [ref=f3e417] [cursor=pointer]:
+          - generic [ref=f3e418]: 📐
+          - generic [ref=f3e420]: Forward Rows
+          - generic [ref=f3e421]: Front Board Direct Lecture & Testing
+        - button "🧩 Island Pods Team Robotics, STEM & CAD Design" [ref=f3e422] [cursor=pointer]:
+          - generic [ref=f3e423]: 🧩
+          - generic [ref=f3e425]: Island Pods
+          - generic [ref=f3e426]: Team Robotics, STEM & CAD Design
+        - button "🏢 Dual-Bank Grid High-Density Separation with Central Walkway" [ref=f3e427] [cursor=pointer]:
+          - generic [ref=f3e428]: 🏢
+          - generic [ref=f3e430]: Dual-Bank Grid
+          - generic [ref=f3e431]: High-Density Separation with Central Walkway
+      - generic [ref=f3e432]:
+        - generic [ref=f3e434]:
+          - generic [ref=f3e435]: 📐
+          - generic [ref=f3e436]:
+            - heading "Progressive Classroom Forward Rows" [level=3] [ref=f3e479]
+            - generic [ref=f3e438]: "Best for: High School Programming, Code Demos & Standardized Exam Halls (16–100 PCs)"
+        - img [ref=f3e440]:
+          - generic [ref=f3e480]:
+            - generic [ref=f3e482]: 🖥️ SMART BOARD & INSTRUCTOR
+            - generic [ref=f3e483]: ROW 1
+            - generic [ref=f3e490]: ROW 2
+            - generic [ref=f3e497]: ROW 3
+        - generic [ref=f3e452]:
+          - generic [ref=f3e453]: "Screen Visibility & Supervision: Direct focus on lecture presentations. All eyes point to the teacher and projection screen during instruction, switching to individual hands-on coding work."
+          - generic [ref=f3e459]: "Cabling & Raceways: Under-floor raceways or overhead drop poles aligned with row aisles for power and Cat6 cabling."
+          - generic [ref=f3e464]: "Client School Example: St. Xavier's High School (Hall 101), Lincoln Tech Academy (Exam Pavilion - 48 PCs)"
+        - button "⚡ Jump to Live School Map with this Layout" [ref=f3e471] [cursor=pointer]
+    - generic [ref=f3e475]:
+      - generic [ref=f3e476]: NetLab MSP Architecture v5.0
+      - button "Got It! Close Guide" [ref=f3e477] [cursor=pointer]
+  - navigation [ref=f3e350]:
+    - button "Lab Map" [ref=f3e351] [cursor=pointer]
+    - button "Tickets" [ref=f3e359] [cursor=pointer]:
+      - generic [ref=f3e360]: "9"
+    - button "Raise Ticket" [ref=f3e366] [cursor=pointer]
+    - button "Engineer Visits" [ref=f3e368] [cursor=pointer]:
+      - generic [ref=f3e374]: Visits
+    - button "Devices Inventory" [ref=f3e375] [cursor=pointer]:
+      - generic [ref=f3e380]: Systems

@@ -1,0 +1,118 @@
+- generic [ref=f5e3]:
+  - banner [ref=f5e4]:
+    - generic [ref=f5e5]:
+      - generic [ref=f5e6]:
+        - generic "NetLab Managed IT Services" [ref=f5e7]
+        - button "Select Client School" [ref=f5e12] [cursor=pointer]:
+          - generic [ref=f5e13]: LTA
+          - generic [ref=f5e14]: Lincoln Tech Academy
+      - generic [ref=f5e17]:
+        - button "🎓 Teach Me" [ref=f5e18] [cursor=pointer]
+        - button "School" [ref=f5e22] [cursor=pointer]
+        - button "Toggle Theme" [ref=f5e28] [cursor=pointer]
+    - generic [ref=f5e35]:
+      - generic [ref=f5e36]:
+        - button "Select Lab" [ref=f5e37] [cursor=pointer]:
+          - generic [ref=f5e38]: Main Computer Science Lab
+        - generic [ref=f5e41]:
+          - generic [ref=f5e42]: 🏛️
+          - generic [ref=f5e43]: U-Shape Perimeter
+      - generic [ref=f5e44]:
+        - button "Engineer Visits" [ref=f5e45] [cursor=pointer]
+        - generic [ref=f5e50]: 4 Issues
+  - main [ref=f5e51]:
+    - generic [ref=f5e52]:
+      - generic [ref=f5e53]:
+        - generic [ref=f5e54]:
+          - button "🏛️ U-Shape Perimeter" [ref=f5e55] [cursor=pointer]:
+            - generic [ref=f5e56]: 🏛️
+            - generic [ref=f5e57]: U-Shape Perimeter
+          - generic: Room 204, Science Wing • 19 Desks
+        - generic [ref=f5e58]:
+          - button "🏰 2.5D Isometric" [active] [ref=f5e490] [cursor=pointer]
+          - button "Edit Layout" [ref=f5e64] [cursor=pointer]
+          - button "All" [ref=f5e70] [cursor=pointer]
+          - generic [ref=f5e74]:
+            - button "Zoom Out" [ref=f5e75] [cursor=pointer]
+            - button "FIT" [ref=f5e79] [cursor=pointer]
+            - button "Zoom In" [ref=f5e80] [cursor=pointer]
+      - img [ref=f5e86]:
+        - generic [ref=f5e89]:
+          - generic [ref=f5e92]: 🖨️ NETWORK PRINTERS & STAGING RACK
+          - generic [ref=f5e94]: LEFT WALL
+          - generic [ref=f5e96]: RIGHT WALL
+          - generic [ref=f5e98]: BACK WALL ROW
+          - generic [ref=f5e100]: TEACHER PODIUM
+          - generic [ref=f5e101]: (360° Screen Visibility)
+        - generic [ref=f5e102]: 🚪 MAIN LAB ENTRANCE
+        - generic [ref=f5e106]:
+          - generic [ref=f5e108] [cursor=pointer]:
+            - generic [ref=f5e110]: Podium
+            - generic [ref=f5e124]: TEACHER-PC
+          - generic [ref=f5e126] [cursor=pointer]:
+            - generic [ref=f5e128]: Laser Bay
+            - generic [ref=f5e141]: "1"
+            - generic [ref=f5e144]: PRN-01
+          - generic [ref=f5e146] [cursor=pointer]:
+            - generic [ref=f5e148]: Color Bay
+            - generic [ref=f5e161]: "1"
+            - generic [ref=f5e164]: PRN-02
+          - generic [ref=f5e166] [cursor=pointer]:
+            - generic [ref=f5e168]: L-01
+            - generic [ref=f5e182]: PC-01
+          - generic [ref=f5e184] [cursor=pointer]:
+            - generic [ref=f5e186]: L-02
+            - generic [ref=f5e200]: PC-02
+          - generic [ref=f5e202] [cursor=pointer]:
+            - generic [ref=f5e204]: L-03
+            - generic [ref=f5e218]: "1"
+            - generic [ref=f5e221]: PC-03
+          - generic [ref=f5e223] [cursor=pointer]:
+            - generic [ref=f5e225]: L-04
+            - generic [ref=f5e239]: PC-04
+          - generic [ref=f5e241] [cursor=pointer]:
+            - generic [ref=f5e243]: L-05
+            - generic [ref=f5e257]: PC-05
+          - generic [ref=f5e259] [cursor=pointer]:
+            - generic [ref=f5e261]: L-06
+            - generic [ref=f5e275]: "1"
+            - generic [ref=f5e278]: PC-06
+          - generic [ref=f5e280] [cursor=pointer]:
+            - generic [ref=f5e282]: B-01
+            - generic [ref=f5e296]: PC-07
+          - generic [ref=f5e298] [cursor=pointer]:
+            - generic [ref=f5e300]: B-02
+            - generic [ref=f5e314]: PC-08
+          - generic [ref=f5e316] [cursor=pointer]:
+            - generic [ref=f5e318]: B-03
+            - generic [ref=f5e332]: PC-09
+          - generic [ref=f5e334] [cursor=pointer]:
+            - generic [ref=f5e336]: B-04
+            - generic [ref=f5e350]: PC-10
+          - generic [ref=f5e352] [cursor=pointer]:
+            - generic [ref=f5e354]: R-01
+            - generic [ref=f5e368]: PC-11
+          - generic [ref=f5e370] [cursor=pointer]:
+            - generic [ref=f5e372]: R-02
+            - generic [ref=f5e386]: PC-12
+          - generic [ref=f5e388] [cursor=pointer]:
+            - generic [ref=f5e390]: R-03
+            - generic [ref=f5e404]: PC-13
+          - generic [ref=f5e406] [cursor=pointer]:
+            - generic [ref=f5e408]: R-04
+            - generic [ref=f5e422]: PC-14
+          - generic [ref=f5e424] [cursor=pointer]:
+            - generic [ref=f5e426]: R-05
+            - generic [ref=f5e440]: PC-15
+          - generic [ref=f5e442] [cursor=pointer]:
+            - generic [ref=f5e444]: R-06
+            - generic [ref=f5e458]: PC-16
+  - navigation [ref=f5e459]:
+    - button "Lab Map" [ref=f5e460] [cursor=pointer]
+    - button "Tickets" [ref=f5e468] [cursor=pointer]:
+      - generic [ref=f5e469]: "5"
+    - button "Raise Ticket" [ref=f5e475] [cursor=pointer]
+    - button "Engineer Visits" [ref=f5e477] [cursor=pointer]:
+      - generic [ref=f5e483]: Visits
+    - button "Devices Inventory" [ref=f5e484] [cursor=pointer]:
+      - generic [ref=f5e489]: Systems

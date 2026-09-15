@@ -1,0 +1,265 @@
+/* Cisco Packet Tracer School Lab Issue Manager - Main Style System */
+
+:root {
+  /* Color Palette - Dark Blueprint Mode (Default) */
+  --bg-primary: #0a0f18;
+  --bg-secondary: #0f1726;
+  --bg-surface: #152238;
+  --bg-surface-hover: #1c2e4c;
+  --bg-surface-active: #243b61;
+  --bg-elevated: #1a2942;
+  --bg-panel: rgba(15, 23, 38, 0.85);
+
+  /* Cisco Packet Tracer Aesthetics */
+  --cisco-blue: #00bceb;
+  --cisco-blue-dark: #049fd9;
+  --cisco-cyan-glow: rgba(0, 188, 235, 0.35);
+  --cisco-grid: rgba(255, 255, 255, 0.05);
+  --cisco-grid-accent: rgba(0, 188, 235, 0.12);
+  --cisco-cable-copper: #334155;
+  --cisco-cable-fiber: #f97316;
+
+  /* Status Colors */
+  --status-up: #10b981;
+  --status-up-glow: rgba(16, 185, 129, 0.4);
+  --status-warning: #f59e0b;
+  --status-warning-glow: rgba(245, 158, 11, 0.4);
+  --status-critical: #ef4444;
+  --status-critical-glow: rgba(239, 68, 68, 0.5);
+  --status-offline: #64748b;
+
+  /* Typography Colors */
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --text-inverse: #0f172a;
+
+  /* Border & Glass Tokens */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(0, 188, 235, 0.5);
+  --border-alert: rgba(239, 68, 68, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.6);
+  --shadow-sheet: 0 -8px 30px rgba(0, 0, 0, 0.7);
+
+  /* Fonts */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Layout Measurements */
+  --header-height: 58px;
+  --bottom-nav-height: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+/* Classic Packet Tracer Light Mode */
+[data-theme="light"] {
+  --bg-primary: #e9eef4;
+  --bg-secondary: #f4f7fb;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f1f5f9;
+  --bg-surface-active: #e2e8f0;
+  --bg-elevated: #ffffff;
+  --bg-panel: rgba(255, 255, 255, 0.92);
+
+  --cisco-blue: #0284c7;
+  --cisco-blue-dark: #0369a1;
+  --cisco-cyan-glow: rgba(2, 132, 199, 0.25);
+  --cisco-grid: rgba(0, 0, 0, 0.06);
+  --cisco-grid-accent: rgba(2, 132, 199, 0.15);
+  --cisco-cable-copper: #94a3b8;
+  --cisco-cable-fiber: #ea580c;
+
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #94a3b8;
+  --text-inverse: #f8fafc;
+
+  --border-subtle: rgba(0, 0, 0, 0.09);
+  --border-focus: rgba(2, 132, 199, 0.6);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.15);
+  --shadow-sheet: 0 -8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Global Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  line-height: 1.5;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Mobile-Friendly Buttons and Inputs */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  transition: all 0.18s ease;
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+input, textarea, select {
+  font-family: inherit;
+  color: var(--text-main);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  outline: none;
+  font-size: 14px;
+  padding: 10px 12px;
+  transition: border-color 0.18s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--cisco-blue);
+  box-shadow: 0 0 0 2px var(--cisco-cyan-glow);
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+/* Utility Animations */
+@keyframes pulseGlow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.75;
+  }
+}
+
+@keyframes packetTravel {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes blinkRed {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 6px var(--status-critical)); }
+  50% { opacity: 0.3; filter: drop-shadow(0 0 1px var(--status-critical)); }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Status Badge Styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.badge-operational {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-critical {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge-urgent {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ff4d4f;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.badge-open {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge-in_progress {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-resolved {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}

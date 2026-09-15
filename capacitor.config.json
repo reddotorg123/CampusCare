@@ -1,0 +1,6 @@
+{
+  "appId": "com.campuscare.app",
+  "appName": "CampusCare",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

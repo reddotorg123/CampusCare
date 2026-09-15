@@ -1,0 +1,107 @@
+- generic [ref=f3e3]:
+  - banner [ref=f3e4]:
+    - generic [ref=f3e5]:
+      - generic "NetLab Managed IT Services" [ref=f3e6]
+      - generic [ref=f3e11]:
+        - button "Select Client School" [ref=f3e12] [cursor=pointer]:
+          - generic [ref=f3e13]: STX
+          - generic [ref=f3e14]: St. Xavier's High School
+        - button "Select Lab" [ref=f3e17] [cursor=pointer]:
+          - generic: CS & Coding Lab 1
+          - generic [ref=f3e18]: 🏛️ U-Shape Perimeter
+    - generic [ref=f3e20]:
+      - button "🎓 Teach Me" [ref=f3e21] [cursor=pointer]
+      - button "Admin" [ref=f3e25] [cursor=pointer]
+      - button "Design Lab Layout" [ref=f3e29] [cursor=pointer]
+      - button "Engineer Visits" [ref=f3e31] [cursor=pointer]
+      - button "Toggle Theme" [ref=f3e36] [cursor=pointer]
+  - main [ref=f3e39]:
+    - generic [ref=f3e40]:
+      - generic [ref=f3e41]:
+        - generic [ref=f3e42]:
+          - button "🏢 Dual-Bank Grid" [ref=f3e43] [cursor=pointer]:
+            - generic [ref=f3e44]: 🏢
+            - generic [ref=f3e45]: Dual-Bank Grid
+          - generic [ref=f3e46]: Room 204, Tech Wing • 18 Devices
+        - generic [ref=f3e47]:
+          - button "All Desks" [ref=f3e48] [cursor=pointer]
+          - generic [ref=f3e52]:
+            - button "Zoom Out" [ref=f3e53] [cursor=pointer]
+            - button "FIT" [ref=f3e57] [cursor=pointer]
+            - button "Zoom In" [ref=f3e58] [cursor=pointer]
+      - img [ref=f3e63]:
+        - generic [ref=f3e65]:
+          - generic [ref=f3e68]: 🖥️ TEACHER PODIUM & RACK
+          - generic [ref=f3e71]: 🖨️ PRINT STATION BAY
+          - generic [ref=f3e74]: STUDENT POD A
+          - generic [ref=f3e77]: STUDENT POD B
+        - generic [ref=f3e78]: 🚪 MAIN LAB ENTRANCE
+        - generic [ref=f3e82]:
+          - generic [ref=f3e84] [cursor=pointer]:
+            - generic [ref=f3e86]: Teacher
+            - generic: TEACHER-PC
+          - generic [ref=f3e98] [cursor=pointer]:
+            - generic [ref=f3e100]: Rack
+            - generic: SW-LAB1-2960
+          - generic [ref=f3e114] [cursor=pointer]:
+            - generic [ref=f3e116]: Laser-01
+            - generic: PRN-LAB1-01
+            - generic [ref=f3e126]: "1"
+          - generic [ref=f3e130] [cursor=pointer]:
+            - generic [ref=f3e132]: Color-02
+            - generic: PRN-LAB1-02
+            - generic [ref=f3e142]: "1"
+          - generic [ref=f3e146] [cursor=pointer]:
+            - generic [ref=f3e148]: B01
+            - generic: PC-L1-01
+          - generic [ref=f3e160] [cursor=pointer]:
+            - generic [ref=f3e162]: B02
+            - generic: PC-L1-02
+          - generic [ref=f3e174] [cursor=pointer]:
+            - generic [ref=f3e176]: B03
+            - generic: PC-L1-03
+          - generic [ref=f3e188] [cursor=pointer]:
+            - generic [ref=f3e190]: B04
+            - generic: PC-L1-04
+            - generic [ref=f3e201]: "1"
+          - generic [ref=f3e205] [cursor=pointer]:
+            - generic [ref=f3e207]: B05
+            - generic: PC-L1-05
+          - generic [ref=f3e219] [cursor=pointer]:
+            - generic [ref=f3e221]: B06
+            - generic: PC-L1-06
+          - generic [ref=f3e233] [cursor=pointer]:
+            - generic [ref=f3e235]: B07
+            - generic: PC-L1-07
+          - generic [ref=f3e247] [cursor=pointer]:
+            - generic [ref=f3e249]: B08
+            - generic: PC-L1-08
+          - generic [ref=f3e261] [cursor=pointer]:
+            - generic [ref=f3e263]: B09
+            - generic: PC-L1-09
+            - generic [ref=f3e274]: "1"
+          - generic [ref=f3e278] [cursor=pointer]:
+            - generic [ref=f3e280]: B10
+            - generic: PC-L1-10
+          - generic [ref=f3e292] [cursor=pointer]:
+            - generic [ref=f3e294]: B11
+            - generic: PC-L1-11
+          - generic [ref=f3e306] [cursor=pointer]:
+            - generic [ref=f3e308]: B12
+            - generic: PC-L1-12
+            - generic [ref=f3e319]: "1"
+          - generic [ref=f3e323] [cursor=pointer]:
+            - generic [ref=f3e325]: B13
+            - generic: PC-L1-13
+          - generic [ref=f3e337] [cursor=pointer]:
+            - generic [ref=f3e339]: B14
+            - generic: PC-L1-14
+  - navigation [ref=f3e350]:
+    - button "Lab Map" [ref=f3e351] [cursor=pointer]
+    - button "Tickets" [ref=f3e359] [cursor=pointer]:
+      - generic [ref=f3e360]: "9"
+    - button "Raise Ticket" [ref=f3e366] [cursor=pointer]
+    - button "Engineer Visits" [ref=f3e368] [cursor=pointer]:
+      - generic [ref=f3e374]: Visits
+    - button "Devices Inventory" [ref=f3e375] [cursor=pointer]:
+      - generic [ref=f3e380]: Systems

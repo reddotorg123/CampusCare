@@ -1,0 +1,392 @@
+/* CampusCare - Enterprise IT AMC & Service Management Styling */
+:root {
+  --navy-900: #0a1b2d;
+  --navy-800: #0f2942;
+  --navy-700: #193859;
+  --navy-600: #1e3a8a;
+  --blue-600: #2563eb;
+  --blue-500: #3b82f6;
+  --blue-50: #eff6ff;
+  
+  --bg-app: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-muted: #f8fafc;
+  --border-light: #e2e8f0;
+  --border-mid: #cbd5e1;
+  
+  --text-main: #0f172a;
+  --text-body: #334155;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
+  
+  --status-working: #10b981;
+  --status-working-bg: #ecfdf5;
+  --status-warning: #f59e0b;
+  --status-warning-bg: #fffbeb;
+  --status-issue: #ef4444;
+  --status-issue-bg: #fef2f2;
+  --status-service: #3b82f6;
+  --status-service-bg: #eff6ff;
+  --status-offline: #64748b;
+  --status-offline-bg: #f1f5f9;
+  
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  overflow-x: hidden;
+  user-select: none;
+}
+
+/* Mobile Screen Wrapper & Phone Frame */
+.campuscare-app-shell {
+  width: 100%;
+  height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #0d1a29;
+}
+
+.mobile-phone-viewport {
+  width: 100%;
+  max-width: 430px;
+  height: 100dvh;
+  max-height: 920px;
+  background-color: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+@media (min-width: 480px) {
+  .mobile-phone-viewport {
+    height: 94vh;
+    border-radius: 36px;
+    border: 7px solid #1e293b;
+  }
+}
+
+/* Mobile Status Bar (9:41, WiFi, Battery) */
+.mobile-status-bar {
+  height: 28px;
+  padding: 6px 18px 0 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-main);
+  background-color: var(--bg-surface);
+  z-index: 50;
+}
+
+.status-bar-icons {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Screen Content Area */
+.screen-scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-surface);
+  padding-bottom: 74px; /* Space for BottomNav */
+}
+
+.screen-scroll-container.no-bottom-nav {
+  padding-bottom: 24px;
+}
+
+/* Screen Top Header */
+.screen-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+  min-height: 48px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.screen-header-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.screen-header-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 8px;
+  color: var(--text-body);
+  transition: background 0.15s;
+}
+
+.icon-button:hover, .icon-button:active {
+  background: var(--bg-muted);
+}
+
+/* Bottom Navigation Bar */
+.bottom-nav-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 60;
+  padding-bottom: 4px;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 12px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  position: relative;
+  transition: color 0.15s;
+}
+
+.bottom-nav-item.active {
+  color: var(--navy-800);
+}
+
+.bottom-nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 14px;
+  background: var(--status-issue);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* Badges & Tags */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.status-pill.working {
+  background: var(--status-working-bg);
+  color: var(--status-working);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.status-pill.warning {
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.status-pill.issue_reported {
+  background: var(--status-issue-bg);
+  color: var(--status-issue);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.status-pill.under_service {
+  background: var(--status-service-bg);
+  color: var(--status-service);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.status-pill.offline {
+  background: var(--status-offline-bg);
+  color: var(--status-offline);
+  border: 1px solid var(--border-light);
+}
+
+/* Primary Navy Button */
+.btn-primary-navy {
+  background-color: var(--navy-800);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.05s;
+  width: 100%;
+}
+
+.btn-primary-navy:active {
+  background-color: var(--navy-900);
+  transform: scale(0.99);
+}
+
+.btn-secondary-outline {
+  background-color: #ffffff;
+  color: var(--text-main);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-secondary-outline:hover, .btn-secondary-outline:active {
+  background-color: var(--bg-muted);
+}
+
+/* Segmented Tabs Control */
+.segmented-tabs {
+  display: flex;
+  background: #e2e8f0;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+  margin: 8px 16px;
+}
+
+.segmented-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.segmented-tab-btn.active {
+  background: #ffffff;
+  color: var(--navy-800);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Form Controls */
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-body);
+  margin-bottom: 5px;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-mid);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-main);
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--navy-800);
+}
+
+/* Cards & Lists */
+.card-item {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 10px;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.card-item.clickable:active {
+  background-color: var(--bg-muted);
+  transform: scale(0.995);
+}
+
+/* Role Selector Badge for Demo */
+.demo-role-banner {
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border-light);
+  padding: 4px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-muted);
+}

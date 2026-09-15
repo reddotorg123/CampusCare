@@ -1,0 +1,16 @@
+{
+  "short_name": "CampusCare",
+  "name": "CampusCare - IT Asset & Service Management",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0F2942",
+  "theme_color": "#0F2942",
+  "display": "standalone",
+  "orientation": "portrait"
+}
