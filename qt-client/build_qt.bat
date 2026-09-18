@@ -27,4 +27,9 @@ if %ERRORLEVEL% NEQ 0 (
 echo =========================================================
 echo [SUCCESS] CampusCare Qt 6 Native Executable Built!
 echo Output: %CD%\CampusCare.exe
+echo Deploying to releases\windows\CampusCare-Windows-v1.0.0 and dist-windows...
+copy /y CampusCare.exe "..\..\releases\windows\CampusCare-Windows-v1.0.0\CampusCare.exe" >nul
+copy /y CampusCare.exe "..\..\dist-windows\CampusCare.exe" >nul
+echo [SUCCESS] Executable copied to release folders!
 echo =========================================================
+

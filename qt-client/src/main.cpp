@@ -21,6 +21,16 @@ int main(int argc, char *argv[])
     AppController appCtrl;
     NetworkManager netMgr;
 
+    // Direct Cloud Connection to Supabase
+    QObject::connect(&netMgr, &NetworkManager::ticketsLoaded, &appCtrl, &AppController::setTicketsFromNetwork);
+    QObject::connect(&netMgr, &NetworkManager::schoolsLoaded, &appCtrl, &AppController::setSchoolsFromNetwork);
+    QObject::connect(&netMgr, &NetworkManager::workstationsLoaded, &appCtrl, &AppController::setWorkstationsFromNetwork);
+
+    // Initial sync & OTA check
+    netMgr.fetchTickets();
+    netMgr.fetchSchools();
+    netMgr.checkOtaUpdate();
+
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("appCtrl", &appCtrl);
     engine.rootContext()->setContextProperty("netMgr", &netMgr);

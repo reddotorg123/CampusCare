@@ -1,0 +1,26 @@
+{
+  "version": "1.0.2",
+  "buildNumber": 3,
+  "releaseDate": "2026-09-18",
+  "minSupportedVersion": "1.0.0",
+  "changelog": "Multi-lab management, editable lab details, hardware spec editor, real-time Supabase cloud sync, and technician job improvements.",
+  "platforms": {
+    "web": {
+      "version": "1.0.2",
+      "mandatory": false,
+      "changelog": "Multi-lab switcher, editable lab info & hardware specs, improved ticket UI, Supabase OTA sync."
+    },
+    "android": {
+      "version": "1.0.2",
+      "mandatory": false,
+      "apkUrl": "https://github.com/campuscare/releases/releases/download/v1.0.2/CampusCare-v1.0.2.apk",
+      "changelog": "Rebuilt Capacitor 8 APK with multi-lab support, editable system specs, and cloud sync fixes."
+    },
+    "windows": {
+      "version": "1.0.2",
+      "mandatory": false,
+      "installerUrl": "https://github.com/campuscare/releases/releases/download/v1.0.2/CampusCare-Setup-1.0.2.exe",
+      "changelog": "Qt 6.11 desktop client with multi-lab management and live Supabase cloud synchronization."
+    }
+  }
+}

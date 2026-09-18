@@ -1,6 +1,11 @@
 #include "AppController.h"
 #include <QDateTime>
 #include <QSettings>
+#include <QRandomGenerator>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonValue>
+#include <QJsonDocument>
 
 AppController::AppController(QObject *parent)
     : QObject(parent)
@@ -42,6 +47,9 @@ void AppController::resetOnboarding()
 
 void AppController::setCurrentScreen(const QString &screen)
 {
+    if (!canAccessScreen(screen)) {
+        return;
+    }
     if (m_currentScreen != screen) {
         m_currentScreen = screen;
         emit currentScreenChanged();
@@ -73,16 +81,16 @@ void AppController::login(const QString &email, const QString &password, const Q
     m_isAuthenticated = true;
 
     if (role == "school_admin") {
-        m_currentUserName = "Dr. K. Jayachandran (Principal)";
-        m_currentUserSchoolName = "Velammal Matric Higher Secondary";
+        m_currentUserName = email.isEmpty() ? QStringLiteral("School Administrator") : email.split('@').first();
+        m_currentUserSchoolName = QStringLiteral("Client Institution");
         m_currentScreen = "school_dashboard";
     } else if (role == "technician") {
-        m_currentUserName = "Rajesh Kumar (Senior Field Engineer)";
-        m_currentUserSchoolName = "AMC Hardware Services Ltd.";
+        m_currentUserName = email.isEmpty() ? QStringLiteral("Field Service Engineer") : email.split('@').first();
+        m_currentUserSchoolName = QStringLiteral("Field Operations");
         m_currentScreen = "technician_job";
     } else { // org_admin
-        m_currentUserName = "A. Vikram (MSP Org Admin)";
-        m_currentUserSchoolName = "CampusCare Multi-Tenant Central";
+        m_currentUserName = email.isEmpty() ? QStringLiteral("MSP System Admin") : email.split('@').first();
+        m_currentUserSchoolName = QStringLiteral("CampusCare Central AMC");
         m_currentScreen = "dashboard";
     }
 
@@ -157,8 +165,28 @@ bool AppController::canAccessScreen(const QString &screen) const
     return true;
 }
 
+QVariantList AppController::schools() const
+{
+    if (m_currentRole == "school_admin") {
+        QVariantList filtered;
+        for (const QVariant &s : m_schools) {
+            QVariantMap map = s.toMap();
+            if (map.value("name").toString() == m_currentUserSchoolName || map.value("id").toString() == "sch-1") {
+                filtered.append(map);
+            }
+        }
+        return filtered;
+    }
+    return m_schools;
+}
+
 void AppController::selectSchool(const QString &schoolId)
 {
+    // School staff/admin cannot switch to external schools
+    if (m_currentRole == "school_admin") {
+        return;
+    }
+
     for (const QVariant &s : m_schools) {
         QVariantMap map = s.toMap();
         if (map.value("id").toString() == schoolId || map.value("code").toString() == schoolId) {
@@ -183,7 +211,7 @@ QVariantList AppController::schoolTickets() const
     QVariantList filtered;
     for (const QVariant &t : m_tickets) {
         QVariantMap map = t.toMap();
-        if (map.value("school").toString().contains("Velammal")) {
+        if (m_currentUserSchoolName.isEmpty() || map.value("school").toString() == m_currentUserSchoolName) {
             filtered.append(map);
         }
     }
@@ -195,11 +223,79 @@ QVariantList AppController::technicianTickets() const
     QVariantList filtered;
     for (const QVariant &t : m_tickets) {
         QVariantMap map = t.toMap();
-        if (map.value("technician").toString().contains("Rajesh Kumar")) {
+        QString tech = map.value("technician").toString();
+        if (!m_currentUserName.isEmpty() && (tech == m_currentUserName || tech.contains(m_currentUserName))) {
             filtered.append(map);
         }
     }
     return filtered;
+}
+
+QVariantList AppController::openTickets() const
+{
+    QVariantList filtered;
+    for (const QVariant &t : m_tickets) {
+        QVariantMap map = t.toMap();
+        QString tech = map.value("technician").toString();
+        QString status = map.value("status").toString();
+        if ((tech.isEmpty() || tech == "Unassigned" || tech.contains("Open Pool")) && status != "Resolved" && status != "Closed") {
+            filtered.append(map);
+        }
+    }
+    return filtered;
+}
+
+void AppController::claimJob(const QString &ticketNumber)
+{
+    for (int i = 0; i < m_tickets.size(); ++i) {
+        QVariantMap t = m_tickets.at(i).toMap();
+        if (t.value("number").toString() == ticketNumber) {
+            t["technician"] = m_currentUserName;
+            t["status"] = "In Progress";
+            m_tickets[i] = t;
+            if (m_selectedTicket.value("number").toString() == ticketNumber) {
+                m_selectedTicket = t;
+                emit selectedTicketChanged();
+            }
+            emit ticketsChanged();
+
+            QVariantMap msg;
+            msg["time"] = QDateTime::currentDateTime().toString("hh:mm AP");
+            msg["author"] = m_currentUserName;
+            msg["role"] = "Field Engineer";
+            msg["action"] = QString("Claimed job %1 from Open Pool").arg(ticketNumber);
+            m_timeline.append(msg);
+            emit timelineChanged();
+            break;
+        }
+    }
+}
+
+void AppController::releaseJob(const QString &ticketNumber, const QString &reason)
+{
+    for (int i = 0; i < m_tickets.size(); ++i) {
+        QVariantMap t = m_tickets.at(i).toMap();
+        if (t.value("number").toString() == ticketNumber) {
+            t["technician"] = "Unassigned";
+            t["status"] = "Open";
+            m_tickets[i] = t;
+            if (m_selectedTicket.value("number").toString() == ticketNumber) {
+                m_selectedTicket = t;
+                emit selectedTicketChanged();
+            }
+            emit ticketsChanged();
+
+            QVariantMap msg;
+            msg["time"] = QDateTime::currentDateTime().toString("hh:mm AP");
+            msg["author"] = m_currentUserName;
+            msg["role"] = "Field Engineer";
+            msg["action"] = QString("Released job %1 back to Open Pool. Reason: %2")
+                .arg(ticketNumber, reason.trimmed().isEmpty() ? "Reassigned by engineer" : reason.trimmed());
+            m_timeline.append(msg);
+            emit timelineChanged();
+            break;
+        }
+    }
 }
 
 void AppController::initData()
@@ -208,174 +304,75 @@ void AppController::initData()
     m_podiumPosition["y"] = 16;
     m_podiumPosition["label"] = "INSTRUCTOR PODIUM & PROJECTOR";
 
-    m_availableTechnicians = QVariantList{
-        "Rajesh Kumar (Senior Field Engineer)",
-        "Suresh Nair (Hardware Specialist)",
-        "Anitha Raj (Network & Systems)",
-        "Karthik V. (Field Support)"
-    };
+    m_availableTechnicians.clear();
+    m_availableLabs.clear();
 
-    m_availableLabs = QStringList{
-        "Main Computer Lab (Lab 1)",
-        "IT & Software Wing (Lab 2)",
-        "Multimedia & CAD Studio (Lab 3)",
-        "Robotics & IoT Laboratory (Lab 4)"
-    };
-
-    // Schools
-    QVariantMap s1;
-    s1["id"] = "sch-1";
-    s1["name"] = "Velammal Matric Higher Secondary";
-    s1["code"] = "VMHS";
-    s1["location"] = "Mogappair East, Chennai";
-    s1["labsCount"] = 4;
-    s1["systemsCount"] = 128;
-    s1["activeTickets"] = 2;
-    s1["amcStatus"] = "Active";
-    s1["amcExpiry"] = "31 Mar 2027";
-    m_schools.append(s1);
-
-    QVariantMap s2;
-    s2["id"] = "sch-2";
-    s2["name"] = "St. John's Higher Secondary School";
-    s2["code"] = "SJHSS";
-    s2["location"] = "Besant Nagar, Chennai";
-    s2["labsCount"] = 3;
-    s2["systemsCount"] = 96;
-    s2["activeTickets"] = 1;
-    s2["amcStatus"] = "Active";
-    s2["amcExpiry"] = "15 Jan 2027";
-    m_schools.append(s2);
-
-    QVariantMap s3;
-    s3["id"] = "sch-3";
-    s3["name"] = "DAV Public School";
-    s3["code"] = "DAVPS";
-    s3["location"] = "Velachery, Chennai";
-    s3["labsCount"] = 5;
-    s3["systemsCount"] = 160;
-    s3["activeTickets"] = 0;
-    s3["amcStatus"] = "Active";
-    s3["amcExpiry"] = "30 Jun 2027";
-    m_schools.append(s3);
-
-    // Workstations (30 PCs across 3 rows of 10)
-    for (int i = 1; i <= 30; ++i) {
-        QVariantMap pc;
-        QString codeStr = QString("PC-%1").arg(i, 2, 10, QChar('0'));
-        QString assetCode = QString("VMHS-PC-%1").arg(i, 3, 10, QChar('0'));
-        pc["code"] = codeStr;
-        pc["assetCode"] = assetCode;
-        
-        int row = (i - 1) / 10;
-        int col = (i - 1) % 10;
-        pc["row"] = row + 1;
-        pc["col"] = col + 1;
-        pc["x"] = 50 + col * 90;
-        pc["y"] = 92 + row * 130;
-
-        if (i == 7) {
-            pc["status"] = "issue"; // Red
-            pc["activeTicket"] = "#TKT-1024";
-        } else if (i == 19) {
-            pc["status"] = "issue"; // Red
-            pc["activeTicket"] = "#TKT-1029";
-        } else if (i == 11) {
-            pc["status"] = "service"; // Blue
-            pc["activeTicket"] = "#TKT-1015";
-        } else if (i == 14 || i == 22) {
-            pc["status"] = "maintenance"; // Amber
-            pc["activeTicket"] = "";
-        } else if (i == 28) {
-            pc["status"] = "offline"; // Gray
-            pc["activeTicket"] = "";
-        } else {
-            pc["status"] = "working"; // Green
-            pc["activeTicket"] = "";
-        }
-
-        pc["makeModel"] = "Dell OptiPlex 3080 SFF";
-        pc["processor"] = "Intel Core i5-10500 @ 3.10GHz (6 Cores)";
-        pc["ram"] = "16 GB DDR4-2666 MHz";
-        pc["storage"] = "512 GB NVMe M.2 SSD + 1 TB HDD";
-        pc["os"] = "Windows 11 Pro Education 64-bit";
-        pc["ip"] = QString("192.168.10.%1").arg(40 + i);
-        pc["mac"] = QString("D4:81:D7:9C:2A:%1").arg(i + 10, 2, 16, QChar('0')).toUpper();
-        pc["monitor"] = "Dell P2419H 24\" IPS FHD";
-        pc["peripherals"] = "Dell KB216 Keyboard + MS116 Optical Mouse";
-        pc["location"] = QString("Main Computer Lab, Row %1, Desk %2").arg(row + 1).arg(col + 1);
-
-        m_workstations.append(pc);
-    }
-
-    m_selectedWorkstation = m_workstations.at(6).toMap();
-
-    // Tickets
-    QVariantMap t1;
-    t1["number"] = "#TKT-1024";
-    t1["title"] = "Blue Screen of Death (DRIVER_IRQL_NOT_LESS_OR_EQUAL) on boot";
-    t1["description"] = "System boots into BSOD with error code DRIVER_IRQL_NOT_LESS_OR_EQUAL pointing to tcpip.sys. Occurs right after Windows login during lab batch sessions.";
-    t1["systemCode"] = "PC-07";
-    t1["assetCode"] = "VMHS-PC-007";
-    t1["school"] = "Velammal Matric Higher Secondary";
-    t1["lab"] = "Main Computer Lab (Lab 1)";
-    t1["status"] = "In Progress";
-    t1["priority"] = "Critical";
-    t1["category"] = "Hardware / Driver Crash";
-    t1["technician"] = "Rajesh Kumar (Senior Field Engineer)";
-    t1["reportedBy"] = "S. Ramanathan (Lab Assistant)";
-    t1["createdAt"] = "Today, 08:45 AM";
-    m_tickets.append(t1);
-
-    QVariantMap t2;
-    t2["number"] = "#TKT-1029";
-    t2["title"] = "System fails to POST - Beep code 3-3 (Memory failure)";
-    t2["description"] = "System powers on with orange diagnostic LED and continuous 3-3 beep sequence. Display remains black.";
-    t2["systemCode"] = "PC-19";
-    t2["assetCode"] = "VMHS-PC-019";
-    t2["school"] = "Velammal Matric Higher Secondary";
-    t2["lab"] = "Main Computer Lab (Lab 1)";
-    t2["status"] = "Open";
-    t2["priority"] = "High";
-    t2["category"] = "Memory / RAM";
-    t2["technician"] = "Rajesh Kumar (Senior Field Engineer)";
-    t2["reportedBy"] = "P. Divya (Lab Assistant)";
-    t2["createdAt"] = "Today, 09:12 AM";
-    m_tickets.append(t2);
-
-    QVariantMap t3;
-    t3["number"] = "#TKT-1015";
-    t3["title"] = "Corrupted OS Registry Hive recovery and verification";
-    t3["description"] = "Reinstalled Windows 11 Education image via network PXE boot. Verifying student portal software and network drives.";
-    t3["systemCode"] = "PC-11";
-    t3["assetCode"] = "VMHS-PC-011";
-    t3["school"] = "Velammal Matric Higher Secondary";
-    t3["lab"] = "Main Computer Lab (Lab 1)";
-    t3["status"] = "Under Service";
-    t3["priority"] = "Medium";
-    t3["category"] = "OS / Software";
-    t3["technician"] = "Rajesh Kumar (Senior Field Engineer)";
-    t3["reportedBy"] = "S. Ramanathan (Lab Assistant)";
-    t3["createdAt"] = "Yesterday, 04:30 PM";
-    m_tickets.append(t3);
-
-    m_selectedTicket = t1;
-
-    // Checklist
-    QVariantMap c1; c1["title"] = "Boot into Dell SupportAssist UEFI Hardware Diagnostics"; c1["done"] = true; m_checklist.append(c1);
-    QVariantMap c2; c2["title"] = "Execute extended memory pass (MemTest86 - 4 passes)"; c2["done"] = true; m_checklist.append(c2);
-    QVariantMap c3; c3["title"] = "Inspect memory dump file (C:\\Windows\\Minidump\\*.dmp)"; c3["done"] = true; m_checklist.append(c3);
-    QVariantMap c4; c4["title"] = "Update Realtek PCIe GbE LAN Controller driver (v10.68+)"; c4["done"] = false; m_checklist.append(c4);
-    QVariantMap c5; c5["title"] = "Perform 30-minute system burn-in stress test"; c5["done"] = false; m_checklist.append(c5);
-    QVariantMap c6; c6["title"] = "Verify student login and network drive mapping"; c6["done"] = false; m_checklist.append(c6);
-
-    // Timeline
-    QVariantMap l1; l1["time"] = "08:45 AM"; l1["author"] = "S. Ramanathan"; l1["role"] = "Lab Staff"; l1["action"] = "Reported Ticket #TKT-1024 (BSOD on boot)"; m_timeline.append(l1);
-    QVariantMap l2; l2["time"] = "08:52 AM"; l2["author"] = "System"; l2["role"] = "Automated Dispatch"; l2["action"] = "Dispatched and assigned to Field Engineer Rajesh Kumar"; m_timeline.append(l2);
-    QVariantMap l3; l3["time"] = "09:15 AM"; l3["author"] = "Rajesh Kumar"; l3["role"] = "Technician"; l3["action"] = "Arrived on site. Initial UEFI diagnostics confirmed healthy hardware components."; m_timeline.append(l3);
-    QVariantMap l4; l4["time"] = "09:35 AM"; l4["author"] = "Rajesh Kumar"; l4["role"] = "Technician"; l4["action"] = "Extracted minidump. Crash identified in rt640x64.sys (Network driver conflict). Preparing driver reinstallation."; m_timeline.append(l4);
+    m_schools.clear();
+    m_workstations.clear();
+    m_tickets.clear();
+    m_checklist.clear();
+    m_timeline.clear();
+    m_selectedWorkstation = QVariantMap();
+    m_selectedTicket = QVariantMap();
 
     recomputeStats();
+}
+
+void AppController::setTicketsFromNetwork(const QJsonArray &tickets)
+{
+    m_tickets.clear();
+    for (const QJsonValue &val : tickets) {
+        if (!val.isObject()) continue;
+        QJsonObject obj = val.toObject();
+        QVariantMap t;
+        t["id"] = obj.value("id").toString();
+        t["number"] = obj.value("ticket_number").toString(QStringLiteral("#TKT-") + obj.value("id").toString().left(6).toUpper());
+        t["title"] = obj.value("title").toString();
+        t["description"] = obj.value("description").toString();
+        t["status"] = obj.value("status").toString(QStringLiteral("Open"));
+        t["priority"] = obj.value("priority").toString(QStringLiteral("Medium"));
+        t["category"] = obj.value("category").toString(QStringLiteral("Hardware"));
+        t["school"] = obj.value("school_name").toString(m_currentUserSchoolName);
+        t["technician"] = obj.value("assigned_technician_name").toString(QStringLiteral("Unassigned"));
+        t["createdAt"] = obj.value("created_at").toString();
+        m_tickets.append(t);
+    }
+    recomputeStats();
+    emit ticketsChanged();
+}
+
+void AppController::setSchoolsFromNetwork(const QJsonArray &schools)
+{
+    m_schools.clear();
+    for (const QJsonValue &val : schools) {
+        if (!val.isObject()) continue;
+        QJsonObject obj = val.toObject();
+        QVariantMap s;
+        s["id"] = obj.value("id").toString();
+        s["name"] = obj.value("name").toString();
+        s["code"] = obj.value("code").toString(QStringLiteral("SCH"));
+        s["location"] = obj.value("city").toString(QStringLiteral("Campus"));
+        s["labsCount"] = 0;
+        s["systemsCount"] = 0;
+        m_schools.append(s);
+    }
+    emit schoolsChanged();
+}
+
+void AppController::setWorkstationsFromNetwork(const QJsonArray &workstations)
+{
+    m_workstations.clear();
+    for (const QJsonValue &val : workstations) {
+        if (!val.isObject()) continue;
+        QJsonObject obj = val.toObject();
+        QVariantMap w;
+        w["code"] = obj.value("name").toString();
+        w["assetCode"] = obj.value("asset_code").toString();
+        w["status"] = obj.value("status").toString(QStringLiteral("working"));
+        m_workstations.append(w);
+    }
+    recomputeStats();
+    emit workstationsChanged();
 }
 
 void AppController::recomputeStats()
@@ -460,8 +457,8 @@ bool AppController::submitTicketWithValidation(const QString &title, const QStri
     emit validationErrorChanged();
 
     QVariantMap newTicket;
-    int nextNum = 1030 + m_tickets.size();
-    QString numStr = QString("#TKT-%1").arg(nextNum);
+    int randomCode = QRandomGenerator::global()->bounded(100000, 999999);
+    QString numStr = QString("TKT-%1").arg(randomCode);
 
     newTicket["number"] = numStr;
     newTicket["title"] = title.trimmed();

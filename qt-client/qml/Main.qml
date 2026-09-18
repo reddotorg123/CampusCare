@@ -32,6 +32,105 @@ ApplicationWindow {
     readonly property color colRed: "#DC2626"
     readonly property color colAmber: "#D97706"
 
+    // ================= OTA OVER-THE-AIR UPDATE SYSTEM =================
+    property string otaNewVersion: ""
+    property string otaDownloadUrl: ""
+    property string otaChangelog: ""
+    property bool otaBannerVisible: false
+
+    Connections {
+        target: netMgr
+        function onOtaUpdateAvailable(newVersion, downloadUrl, releaseNotes) {
+            root.otaNewVersion = newVersion;
+            root.otaDownloadUrl = downloadUrl;
+            root.otaChangelog = releaseNotes;
+            root.otaBannerVisible = true;
+        }
+    }
+
+    Rectangle {
+        id: otaBanner
+        z: 999
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: root.otaBannerVisible ? 12 : -120
+        width: Math.min(parent.width - 24, 560)
+        height: 60
+        radius: 10
+        color: "#0F172A"
+        border.color: "#38BDF8"
+        border.width: 1.5
+        visible: opacity > 0
+        opacity: root.otaBannerVisible ? 1.0 : 0.0
+
+        Behavior on anchors.topMargin { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: 250 } }
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 14
+            anchors.rightMargin: 12
+            spacing: 12
+
+            Text {
+                text: "🚀"
+                font.pixelSize: 20
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Text {
+                    text: "CampusCare Update Available (" + root.otaNewVersion + ")"
+                    font.bold: true
+                    font.pixelSize: 13
+                    color: "#FFFFFF"
+                }
+                Text {
+                    text: root.otaChangelog || "New performance updates and database fixes."
+                    font.pixelSize: 11
+                    color: "#94A3B8"
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
+                }
+            }
+
+            Button {
+                text: "Update"
+                onClicked: {
+                    netMgr.openDownloadUrl(root.otaDownloadUrl);
+                    root.otaBannerVisible = false;
+                }
+                contentItem: Text {
+                    text: parent.text
+                    color: "#FFFFFF"
+                    font.bold: true
+                    font.pixelSize: 11
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    color: "#0284C7"
+                    radius: 6
+                }
+            }
+
+            Button {
+                text: "✕"
+                onClicked: root.otaBannerVisible = false
+                contentItem: Text {
+                    text: "✕"
+                    color: "#94A3B8"
+                    font.bold: true
+                    font.pixelSize: 12
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle { color: "transparent" }
+            }
+        }
+    }
+
     // ================= 1. LOGIN BARRIER (WHEN NOT AUTHENTICATED) =================
     Loader {
         anchors.fill: parent

@@ -1,10 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  INITIAL_SCHOOLS, 
-  INITIAL_TICKETS, 
-  getVelammalMainLabDevices 
-} from './data/labData';
-
+import React, { useState, useEffect, useMemo } from 'react';
 import { CampusCareLogin } from './components/CampusCareLogin';
 import { CampusCareDashboard } from './components/CampusCareDashboard';
 import { CampusCareSchoolsList } from './components/CampusCareSchoolsList';
@@ -15,51 +9,196 @@ import { CampusCareTicketDetails } from './components/CampusCareTicketDetails';
 import { CampusCareTicketTimeline } from './components/CampusCareTicketTimeline';
 import { CampusCareTechnicianJob } from './components/CampusCareTechnicianJob';
 import { CampusCareLabEditor } from './components/CampusCareLabEditor';
-import { FirstTimeGuideModal } from './components/FirstTimeGuideModal';
-import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
+import { CampusCareTicketsList } from './components/CampusCareTicketsList';
+import SupabaseConfigModal from './components/SupabaseConfigModal';
+import { OtaUpdateModal } from './components/OtaUpdateModal';
+import { checkOtaUpdate, APP_CURRENT_VERSION } from './services/otaService';
+import { INITIAL_SCHOOLS, INITIAL_TICKETS } from './data/labData';
+import { 
+  isLiveDb, 
+  fetchSchoolsFromDb, 
+  fetchTicketsFromDb, 
+  registerSchoolInDb,
+  createTicketInDb, 
+  updateTicketStatusInDb, 
+  claimTicketInDb, 
+  saveLabLayoutToDb, 
+  subscribeToTickets 
+} from './services/dbService';
 
-import { Home, Ticket, School, UserCheck, MoreHorizontal, HelpCircle, LogOut } from 'lucide-react';
+import { Home, Ticket, School, UserCheck, MoreHorizontal, LogOut, Monitor, PlusCircle, Database, ArrowDownCircle } from 'lucide-react';
 import './styles/campuscare.css';
 
+// Helper to generate clean lab workstations without hardcoded fake data
+export function generateInitialLabDevices(count = 20, schoolCode = 'PC') {
+  const devices = [];
+  const cols = 5;
+  for (let i = 1; i <= count; i++) {
+    const numStr = String(i).padStart(2, '0');
+    const code = `PC-${numStr}`;
+    const r = Math.floor((i - 1) / cols);
+    const c = (i - 1) % cols;
+    devices.push({
+      id: `dev-pc-${numStr}`,
+      name: code,
+      code: code,
+      assetCode: `${schoolCode}-PC-0${numStr}`,
+      status: 'working',
+      type: 'pc',
+      coords: {
+        x: 35 + (c * 66),
+        y: 60 + (r * 78)
+      },
+      width: 52,
+      height: 44,
+      makeModel: 'Standard Lab Workstation',
+      processor: 'Intel Core i5',
+      ram: '8 GB',
+      storage: '256 GB SSD',
+      os: 'Windows 11 Pro',
+      ip: `192.168.1.${100 + i}`
+    });
+  }
+
+  // Add configurable Teacher's Desk & Entrance
+  devices.push({
+    id: 'element-teacher-desk',
+    type: 'teacher_desk',
+    name: "Teacher's Desk",
+    code: "TEACHER",
+    coords: { x: 280, y: 340 },
+    width: 88,
+    height: 44
+  });
+
+  devices.push({
+    id: 'element-main-entrance',
+    type: 'entrance',
+    name: "Main Entrance",
+    code: "ENTRANCE",
+    coords: { x: 10, y: 350 },
+    width: 68,
+    height: 28
+  });
+
+  return devices;
+}
+
 export default function App() {
-  const STORAGE_KEY = 'campuscare_v2_clean';
+  // Clean persistent storage namespace (v3 - zero fake demo data)
+  const STORAGE_KEY = 'campuscare_v3_clean';
 
   // Authentication State - Login Barrier First
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_user`);
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_user`);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentScreen, setCurrentScreen] = useState('login');
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_user`);
+    return Boolean(saved);
+  });
+
+  const [currentScreen, setCurrentScreen] = useState(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_user`);
+    if (saved) {
+      try {
+        const u = JSON.parse(saved);
+        return u.role === 'technician' ? 'technician_job' : 'dashboard';
+      } catch {
+        return 'login';
+      }
+    }
+    return 'login';
+  });
+
   const [activeBottomNav, setActiveBottomNav] = useState('home');
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [showMoreSheet, setShowMoreSheet] = useState(false);
-  const [isSupabaseActive, setIsSupabaseActive] = useState(() => isSupabaseConfigured());
+  const [showDbModal, setShowDbModal] = useState(false);
+  const [isDbConnected, setIsDbConnected] = useState(() => isLiveDb());
+  const [engineerNotification, setEngineerNotification] = useState(null);
 
-  // Core Business State
+  // Over-The-Air (OTA) Update State
+  const [otaInfo, setOtaInfo] = useState(null);
+  const [showOtaModal, setShowOtaModal] = useState(false);
+
+  // Handle manual or automatic OTA Update check
+  const handleCheckOta = async () => {
+    const info = await checkOtaUpdate();
+    if (info?.updateAvailable) {
+      setOtaInfo(info);
+      setShowOtaModal(true);
+    } else {
+      alert(`CampusCare is up to date! Current version: v${APP_CURRENT_VERSION}`);
+    }
+  };
+
+  // Check for OTA update on startup
+  useEffect(() => {
+    checkOtaUpdate().then(info => {
+      if (info && info.updateAvailable) {
+        setOtaInfo(info);
+        setShowOtaModal(true);
+      }
+    });
+  }, []);
+
+  // Core Business State - Starts Clean!
+  // Core Business State - Falls back to INITIAL_SCHOOLS if storage is empty
   const [schools, setSchools] = useState(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_schools`);
-    return saved ? JSON.parse(saved) : INITIAL_SCHOOLS;
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_schools`);
+      const list = saved ? JSON.parse(saved) : [];
+      return (Array.isArray(list) && list.length > 0) ? list : INITIAL_SCHOOLS;
+    } catch {
+      return INITIAL_SCHOOLS;
+    }
   });
 
-  const [selectedSchool, setSelectedSchool] = useState(() => schools[0]);
-
-  const [labDevices, setLabDevices] = useState(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_devices`);
-    return saved ? JSON.parse(saved) : getVelammalMainLabDevices();
+  const [selectedSchool, setSelectedSchool] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_schools`);
+      const list = saved ? JSON.parse(saved) : [];
+      const activeList = (Array.isArray(list) && list.length > 0) ? list : INITIAL_SCHOOLS;
+      return activeList[0] || null;
+    } catch {
+      return INITIAL_SCHOOLS[0] || null;
+    }
   });
 
-  const [selectedDevice, setSelectedDevice] = useState(() => {
-    return labDevices.find(d => d.code === 'PC-07') || labDevices[6] || null;
+  // Selected Lab ID for multi-lab navigation
+  const [selectedLabId, setSelectedLabId] = useState(() => {
+    return INITIAL_SCHOOLS[0]?.labs?.[0]?.id || null;
   });
+
+  // Per-lab devices map: { [labId]: [...] }
+  const [devicesByLab, setDevicesByLab] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_devices_by_lab`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [selectedDevice, setSelectedDevice] = useState(null);
 
   const [tickets, setTickets] = useState(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_tickets`);
-    return saved ? JSON.parse(saved) : INITIAL_TICKETS;
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_tickets`);
+      const list = saved ? JSON.parse(saved) : [];
+      return (Array.isArray(list) && list.length > 0) ? list : INITIAL_TICKETS;
+    } catch {
+      return INITIAL_TICKETS;
+    }
   });
 
-  const [selectedTicket, setSelectedTicket] = useState(() => tickets[0]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   // LocalStorage Persistence
   useEffect(() => {
@@ -67,8 +206,8 @@ export default function App() {
   }, [schools]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_devices`, JSON.stringify(labDevices));
-  }, [labDevices]);
+    localStorage.setItem(`${STORAGE_KEY}_devices_by_lab`, JSON.stringify(devicesByLab));
+  }, [devicesByLab]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_tickets`, JSON.stringify(tickets));
@@ -77,69 +216,263 @@ export default function App() {
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem(`${STORAGE_KEY}_user`, JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem(`${STORAGE_KEY}_user`);
     }
   }, [currentUser]);
 
-  // Live Supabase Sync Effect
-  useEffect(() => {
-    if (isSupabaseActive) {
-      const client = getSupabaseClient();
-      if (client) {
-        client
-          .from('tickets')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .then(({ data, error }) => {
-            if (!error && data && data.length > 0) {
-              const mapped = data.map(dbT => ({
-                id: dbT.id,
-                schoolName: dbT.school_name || 'Velammal Matriculation',
-                labName: dbT.lab_name || 'Computer Lab 1',
-                systemId: dbT.device_code || dbT.system_id || 'PC-07',
-                systemName: dbT.device_code || dbT.system_id || 'PC-07',
-                issue: dbT.title || dbT.issue,
-                priority: dbT.priority ? (dbT.priority.charAt(0).toUpperCase() + dbT.priority.slice(1)) : 'High',
-                status: dbT.status || 'open',
-                reportedBy: dbT.reporter_name || 'Lab In-Charge',
-                reportedAt: dbT.created_at ? new Date(dbT.created_at).toLocaleDateString() : 'Today',
-                category: dbT.category || 'Hardware',
-                notes: dbT.description || '',
-                timeline: [
-                  { step: 'Created', label: 'Ticket Logged', date: 'Logged', done: true },
-                  { step: 'Assigned', label: 'Tech Assigned', date: '', done: false },
-                  { step: 'Service', label: 'In Progress', date: '', done: false },
-                  { step: 'Resolved', label: 'Resolved & Signed', date: '', done: false }
-                ],
-                communications: []
-              }));
-              setTickets(mapped);
-            }
-          })
-          .catch(err => console.warn('Supabase fetch error:', err));
+  // Cloud database synchronization (Supabase)
+  const loadCloudData = async () => {
+    if (!isLiveDb()) return;
+    try {
+      const dbSchools = await fetchSchoolsFromDb();
+      if (dbSchools !== null) {
+        setSchools(dbSchools);
+        setSelectedSchool(dbSchools[0] || null);
+        if (dbSchools[0]?.labs && dbSchools[0].labs.length > 0) {
+          setSelectedLabId(dbSchools[0].labs[0].id);
+        } else {
+          setSelectedLabId(null);
+        }
       }
+
+      const dbTickets = await fetchTicketsFromDb();
+      if (dbTickets !== null) {
+        setTickets(dbTickets);
+      }
+    } catch (err) {
+      console.warn('Error loading cloud database tables:', err);
     }
-  }, [isSupabaseActive]);
+  };
+
+  useEffect(() => {
+    if (isDbConnected) {
+      loadCloudData();
+      const unsubscribe = subscribeToTickets(() => {
+        fetchTicketsFromDb().then(dbTickets => {
+          if (dbTickets) setTickets(dbTickets);
+        });
+      });
+      return () => {
+        if (unsubscribe) unsubscribe();
+      };
+    }
+  }, [isDbConnected]);
+
+  // Multi-tenancy filtered schools
+  const userSchools = useMemo(() => {
+    if (currentUser?.role === 'school_staff') {
+      return schools.filter(s => s.id === currentUser.schoolId || s.name === currentUser.schoolName);
+    }
+    return schools;
+  }, [currentUser, schools]);
+
+  const activeSchool = useMemo(() => {
+    return userSchools.find(s => s.id === selectedSchool?.id) || userSchools[0] || selectedSchool;
+  }, [userSchools, selectedSchool]);
+
+  // Active School Labs
+  const schoolLabs = useMemo(() => {
+    if (!activeSchool) return [];
+    if (activeSchool.labs && activeSchool.labs.length > 0) {
+      return activeSchool.labs;
+    }
+    return [];
+  }, [activeSchool]);
+
+  // Current active lab
+  const currentLab = useMemo(() => {
+    if (!schoolLabs || schoolLabs.length === 0) return null;
+    return schoolLabs.find(l => l.id === selectedLabId) || schoolLabs[0];
+  }, [schoolLabs, selectedLabId]);
+
+  // Current lab's workstations & layout elements
+  const currentLabDevices = useMemo(() => {
+    if (!currentLab) return [];
+    if (devicesByLab[currentLab.id]) return devicesByLab[currentLab.id];
+    return generateInitialLabDevices(currentLab.capacity || 20, currentLab.code || activeSchool?.code || 'PC');
+  }, [currentLab, devicesByLab, activeSchool]);
+
+  // Handle new institution registration from Login/Signup
+  const handleRegisterNewSchool = async (newSchool, pcCount = 20) => {
+    setSchools(prev => {
+      const updated = [...prev.filter(s => s.id !== newSchool.id), newSchool];
+      return updated;
+    });
+
+    setSelectedSchool(newSchool);
+
+    const firstLab = newSchool.labs?.[0];
+    const firstLabId = firstLab?.id || `lab-${newSchool.id}-1`;
+    setSelectedLabId(firstLabId);
+
+    // Initialize workstations for this school's first lab
+    const count = Number(pcCount) || 20;
+    const newDevices = generateInitialLabDevices(count, newSchool.code);
+    setDevicesByLab(prev => ({
+      ...prev,
+      [firstLabId]: newDevices
+    }));
+
+    if (isDbConnected) {
+      await registerSchoolInDb(newSchool);
+    }
+  };
+
+  // Lab Management Handlers
+  const handleSelectLab = (labId) => {
+    setSelectedLabId(labId);
+  };
+
+  const handleAddLab = (newLabData, pcCount = 20) => {
+    if (!activeSchool) return;
+    const count = Number(pcCount) || 20;
+    const newLabId = `lab-${activeSchool.id}-${Date.now()}`;
+    const newLab = {
+      id: newLabId,
+      name: newLabData.name || `Computer Lab ${(schoolLabs.length || 0) + 1}`,
+      code: newLabData.code || `LAB-0${(schoolLabs.length || 0) + 1}`,
+      room: newLabData.room || 'Room 201',
+      capacity: count,
+      inCharge: newLabData.inCharge || '',
+      phone: newLabData.phone || '',
+      network: newLabData.network || 'Gigabit Ethernet Cat6 with Managed Switch',
+      ups: newLabData.ups || '10kVA Online Central UPS (30 min backup)',
+      operatingHours: newLabData.operatingHours || '8:30 AM - 4:30 PM (Mon - Fri)',
+      notes: newLabData.notes || ''
+    };
+
+    // Update schools state
+    setSchools(prev => prev.map(s => {
+      if (s.id !== activeSchool.id) return s;
+      const existingLabs = (s.labs && s.labs.length > 0) ? s.labs : schoolLabs;
+      return {
+        ...s,
+        labsCount: existingLabs.length + 1,
+        systemsCount: (s.systemsCount || 0) + count,
+        labs: [...existingLabs, newLab]
+      };
+    }));
+
+    // Generate initial workstations for this new lab
+    const newDevices = generateInitialLabDevices(count, newLab.code);
+    setDevicesByLab(prev => ({
+      ...prev,
+      [newLabId]: newDevices
+    }));
+
+    setSelectedLabId(newLabId);
+  };
+
+  const handleUpdateLab = (updatedLab) => {
+    if (!activeSchool || !updatedLab) return;
+    setSchools(prev => prev.map(s => {
+      if (s.id !== activeSchool.id) return s;
+      const currentList = (s.labs && s.labs.length > 0) ? s.labs : schoolLabs;
+      return {
+        ...s,
+        labs: currentList.map(l => l.id === updatedLab.id ? { ...l, ...updatedLab } : l)
+      };
+    }));
+  };
+
+  const handleDeleteLab = (labId) => {
+    if (!activeSchool || schoolLabs.length <= 1) return;
+    setSchools(prev => prev.map(s => {
+      if (s.id !== activeSchool.id) return s;
+      const currentList = (s.labs && s.labs.length > 0) ? s.labs : schoolLabs;
+      const filtered = currentList.filter(l => l.id !== labId);
+      return {
+        ...s,
+        labsCount: filtered.length,
+        labs: filtered
+      };
+    }));
+
+    // Cleanup devices for deleted lab
+    setDevicesByLab(prev => {
+      const copy = { ...prev };
+      delete copy[labId];
+      return copy;
+    });
+
+    const remaining = schoolLabs.filter(l => l.id !== labId);
+    if (remaining.length > 0) {
+      setSelectedLabId(remaining[0].id);
+    }
+  };
+
+  // Workstation Device Handlers
+  const handleUpdateDevice = (updatedDevice) => {
+    if (!currentLab || !updatedDevice) return;
+    const labId = currentLab.id;
+    setDevicesByLab(prev => {
+      const list = prev[labId] || currentLabDevices;
+      const updated = list.map(d => d.id === updatedDevice.id ? { ...d, ...updatedDevice } : d);
+      return {
+        ...prev,
+        [labId]: updated
+      };
+    });
+    setSelectedDevice(updatedDevice);
+  };
+
+  const handleAddDevice = (newDeviceData) => {
+    if (!currentLab) return;
+    const labId = currentLab.id;
+    const currentList = devicesByLab[labId] || currentLabDevices;
+    const nextNum = currentList.filter(d => d.type === 'pc' || !d.type).length + 1;
+    const numStr = String(nextNum).padStart(2, '0');
+
+    const newDevice = {
+      id: `dev-pc-${Date.now()}`,
+      name: newDeviceData.code || `PC-${numStr}`,
+      code: newDeviceData.code || `PC-${numStr}`,
+      assetCode: newDeviceData.assetCode || `${currentLab.code || 'LAB'}-PC-${numStr}`,
+      status: newDeviceData.status || 'working',
+      type: 'pc',
+      coords: newDeviceData.coords || { x: 40 + ((nextNum % 5) * 66), y: 60 + (Math.floor(nextNum / 5) * 78) },
+      width: 52,
+      height: 44,
+      makeModel: newDeviceData.makeModel || 'Standard Lab Workstation',
+      processor: newDeviceData.processor || 'Intel Core i5',
+      ram: newDeviceData.ram || '8 GB DDR4',
+      storage: newDeviceData.storage || '256 GB SSD',
+      os: newDeviceData.os || 'Windows 11 Pro',
+      ip: newDeviceData.ip || `192.168.1.${100 + nextNum}`,
+      mac: newDeviceData.mac || '',
+      monitor: newDeviceData.monitor || '21.5" FHD',
+      peripherals: newDeviceData.peripherals || 'USB Keyboard, Optical Mouse',
+      location: newDeviceData.location || `${currentLab.name} - Row ${Math.ceil(nextNum / 5)}`,
+      serialNumber: newDeviceData.serialNumber || `SN-${Date.now().toString().slice(-6)}`,
+      purchaseDate: newDeviceData.purchaseDate || new Date().toISOString().split('T')[0]
+    };
+
+    setDevicesByLab(prev => ({
+      ...prev,
+      [labId]: [...currentList, newDevice]
+    }));
+  };
 
   // Handlers
   const handleLogin = (userData) => {
     setCurrentUser(userData);
     setIsLoggedIn(true);
 
-    // Trigger Onboarding Guide on First-Time Login
-    const hasSeenGuide = localStorage.getItem(`${STORAGE_KEY}_guide_seen`);
-    if (!hasSeenGuide) {
-      setShowGuideModal(true);
-      localStorage.setItem(`${STORAGE_KEY}_guide_seen`, 'true');
-    }
-
-    // Role-based screen routing
-    if (userData.role === 'technician') {
-      setCurrentScreen('technician_job');
-      setActiveBottomNav('tickets');
-    } else if (userData.role === 'school_staff') {
-      setSelectedSchool(schools[0]);
+    // For school staff, find their school and isolate view
+    if (userData.role === 'school_staff') {
+      const userSchool = schools.find(s => s.id === userData.schoolId) || selectedSchool;
+      if (userSchool) {
+        setSelectedSchool(userSchool);
+        if (userSchool.labs && userSchool.labs.length > 0) {
+          setSelectedLabId(userSchool.labs[0].id);
+        }
+      }
       setCurrentScreen('dashboard');
       setActiveBottomNav('home');
+    } else if (userData.role === 'technician') {
+      setCurrentScreen('technician_job');
+      setActiveBottomNav('engineers');
     } else {
       setCurrentScreen('dashboard');
       setActiveBottomNav('home');
@@ -147,13 +480,19 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    setCurrentUser(null);
     setIsLoggedIn(false);
+    localStorage.removeItem(`${STORAGE_KEY}_user`);
     setCurrentScreen('login');
   };
 
   const handleSelectSchool = (school) => {
     setSelectedSchool(school);
+    if (school?.labs && school.labs.length > 0) {
+      setSelectedLabId(school.labs[0].id);
+    }
     setCurrentScreen('lab_map');
+    setActiveBottomNav('lab_map');
   };
 
   const handleSelectDevice = (device) => {
@@ -166,137 +505,169 @@ export default function App() {
     setCurrentScreen('create_ticket');
   };
 
-  const handleCreateTicketSubmit = (newTicket) => {
+  const handleCreateTicketSubmit = async (ticketInput) => {
+    let newTicket = {
+      ...ticketInput,
+      id: ticketInput.id || `tkt-${Date.now()}`,
+      status: 'open',
+      technician: 'Unassigned',
+      assignedTo: null
+    };
+
+    if (isDbConnected) {
+      newTicket = await createTicketInDb(newTicket);
+    }
+
     setTickets(prev => [newTicket, ...prev]);
-    
-    // Push to Supabase if active
-    if (isSupabaseActive) {
-      const client = getSupabaseClient();
-      if (client) {
-        client.from('tickets').insert([{
-          id: newTicket.id,
-          title: newTicket.issue,
-          description: newTicket.notes || newTicket.issue,
-          priority: (newTicket.priority || 'medium').toLowerCase(),
-          status: 'open',
-          reporter_name: newTicket.reportedBy || 'Staff',
-          device_code: newTicket.systemName || newTicket.systemId || 'PC-07'
-        }]).then(({ error }) => {
-          if (error) console.warn('Supabase insert ticket error:', error);
+
+    // Send instant notification to Field Engineers
+    setEngineerNotification(`🚨 New Issue: ${newTicket.schoolName} (${newTicket.systemName || 'PC'}) - "${newTicket.problem || newTicket.title}".`);
+    setTimeout(() => setEngineerNotification(null), 7000);
+
+    // Update workstation status to issue_reported
+    if (newTicket.systemName) {
+      const targetLabId = newTicket.labId || currentLab?.id;
+      if (targetLabId) {
+        setDevicesByLab(prev => {
+          const list = prev[targetLabId] || currentLabDevices;
+          const updated = list.map(d => {
+            if (d.code === newTicket.systemName || d.name === newTicket.systemName) {
+              return { ...d, status: 'issue_reported' };
+            }
+            return d;
+          });
+          return {
+            ...prev,
+            [targetLabId]: updated
+          };
         });
       }
     }
 
-    // Update device status to issue_reported
-    if (newTicket.systemName) {
-      setLabDevices(prev => prev.map(d => {
-        if (d.code === newTicket.systemName) {
-          return { ...d, status: 'issue_reported' };
-        }
-        return d;
-      }));
-    }
-
     setSelectedTicket(newTicket);
-    setCurrentScreen('ticket_details');
+    setCurrentScreen('tickets');
     setActiveBottomNav('tickets');
   };
 
   const handleSelectTicket = (ticket) => {
     setSelectedTicket(ticket);
     setCurrentScreen('ticket_details');
-    setActiveBottomNav('tickets');
   };
 
-  const handleToggleChecklistItem = (ticketId, itemId) => {
+  const handleUpdateTicketStatus = (ticketId, nextStatus) => {
+    if (isDbConnected) {
+      updateTicketStatusInDb(ticketId, nextStatus, '', currentUser?.name);
+    }
+
     setTickets(prev => prev.map(t => {
       if (t.id !== ticketId) return t;
-      const updatedChecklist = t.checklist?.map(item => {
-        if (item.id !== itemId) return item;
-        return { ...item, checked: !item.checked };
-      });
-      return { ...t, checklist: updatedChecklist };
+      return {
+        ...t,
+        status: nextStatus,
+        timeline: t.timeline?.map(step => {
+          if (step.status === nextStatus) return { ...step, done: true, date: 'Just now' };
+          return step;
+        })
+      };
     }));
 
     if (selectedTicket && selectedTicket.id === ticketId) {
       setSelectedTicket(prev => ({
         ...prev,
-        checklist: prev.checklist?.map(item => {
-          if (item.id !== itemId) return item;
-          return { ...item, checked: !item.checked };
-        })
+        status: nextStatus
       }));
     }
   };
 
-  const handleUpdateTicketStatus = (ticketId, newStatus) => {
+  const handleClaimTicket = (ticketId, engineerName) => {
+    if (isDbConnected) {
+      claimTicketInDb(ticketId, engineerName);
+    }
+
     setTickets(prev => prev.map(t => {
       if (t.id !== ticketId) return t;
-      return { ...t, status: newStatus };
-    }));
-
-    if (selectedTicket && selectedTicket.id === ticketId) {
-      setSelectedTicket(prev => ({ ...prev, status: newStatus }));
-    }
-
-    // Sync status to Supabase
-    if (isSupabaseActive) {
-      const client = getSupabaseClient();
-      if (client) {
-        client.from('tickets').update({ status: newStatus }).eq('id', ticketId).then(({ error }) => {
-          if (error) console.warn('Supabase status update error:', error);
-        });
-      }
-    }
-
-    // Sync device status on lab map
-    const t = tickets.find(ticket => ticket.id === ticketId);
-    if (t && t.systemName) {
-      setLabDevices(prev => prev.map(d => {
-        if (d.code === t.systemName) {
-          const deviceStatus = newStatus === 'resolved' || newStatus === 'closed' ? 'working' :
-                               newStatus === 'in_progress' ? 'under_service' : 'issue_reported';
-          return { ...d, status: deviceStatus };
-        }
-        return d;
-      }));
-    }
-  };
-
-  const handleSendChatMessage = (newMessage) => {
-    if (!selectedTicket) return;
-
-    setTickets(prev => prev.map(t => {
-      if (t.id !== selectedTicket.id) return t;
       return {
         ...t,
-        communications: [...(t.communications || []), newMessage]
+        technician: engineerName,
+        assignedTo: engineerName,
+        status: 'in_progress'
       };
     }));
 
-    setSelectedTicket(prev => ({
-      ...prev,
-      communications: [...(prev.communications || []), newMessage]
-    }));
-
-    // Sync communication to Supabase
-    if (isSupabaseActive) {
-      const client = getSupabaseClient();
-      if (client) {
-        client.from('ticket_communications').insert([{
-          ticket_id: selectedTicket.id,
-          sender_name: newMessage.author,
-          sender_role: newMessage.role || 'staff',
-          message: newMessage.text
-        }]).then(({ error }) => {
-          if (error) console.warn('Supabase communication insert error:', error);
-        });
-      }
+    if (selectedTicket && selectedTicket.id === ticketId) {
+      setSelectedTicket(prev => ({
+        ...prev,
+        technician: engineerName,
+        assignedTo: engineerName,
+        status: 'in_progress'
+      }));
     }
   };
 
+  const handleReleaseTicket = (ticketId, reason) => {
+    setTickets(prev => prev.map(t => {
+      if (t.id !== ticketId) return t;
+      return {
+        ...t,
+        technician: 'Unassigned',
+        assignedTo: null,
+        status: 'open',
+        releaseReason: reason
+      };
+    }));
+
+    if (selectedTicket && selectedTicket.id === ticketId) {
+      setSelectedTicket(prev => ({
+        ...prev,
+        technician: 'Unassigned',
+        assignedTo: null,
+        status: 'open',
+        releaseReason: reason
+      }));
+    }
+  };
+
+  const handleToggleChecklistItem = (itemId) => {
+    if (!selectedTicket) return;
+    const updatedChecklist = selectedTicket.checklist?.map(item => {
+      if (item.id === itemId) return { ...item, checked: !item.checked };
+      return item;
+    });
+
+    setSelectedTicket(prev => ({ ...prev, checklist: updatedChecklist }));
+    setTickets(prev => prev.map(t => {
+      if (t.id === selectedTicket.id) return { ...t, checklist: updatedChecklist };
+      return t;
+    }));
+  };
+
+  const handleSendChatMessage = (text) => {
+    if (!selectedTicket || !text.trim()) return;
+    const newMessage = {
+      id: `msg-${Date.now()}`,
+      sender: currentUser?.name || 'Staff',
+      role: currentUser?.role || 'school_staff',
+      time: 'Just now',
+      text: text.trim()
+    };
+
+    const updated = [...(selectedTicket.communications || []), newMessage];
+    setSelectedTicket(prev => ({ ...prev, communications: updated }));
+    setTickets(prev => prev.map(t => {
+      if (t.id === selectedTicket.id) return { ...t, communications: updated };
+      return t;
+    }));
+  };
+
   const handleSaveLabLayout = (updatedDevices) => {
-    setLabDevices(updatedDevices);
+    if (!currentLab) return;
+    if (isDbConnected) {
+      saveLabLayoutToDb(currentLab.id, updatedDevices);
+    }
+    setDevicesByLab(prev => ({
+      ...prev,
+      [currentLab.id]: updatedDevices
+    }));
   };
 
   const handleBottomNavClick = (tab) => {
@@ -305,11 +676,23 @@ export default function App() {
       case 'home':
         setCurrentScreen('dashboard');
         break;
+      case 'lab_map':
+        setCurrentScreen('lab_map');
+        break;
       case 'tickets':
-        setCurrentScreen('ticket_details');
+        setCurrentScreen('tickets');
         break;
       case 'schools':
-        setCurrentScreen('schools');
+        if (currentUser?.role === 'school_staff') {
+          // Strictly block access to other schools (Data Isolation)
+          setCurrentScreen('dashboard');
+          setActiveBottomNav('home');
+        } else {
+          setCurrentScreen('schools');
+        }
+        break;
+      case 'create_ticket':
+        setCurrentScreen('create_ticket');
         break;
       case 'engineers':
         setCurrentScreen('technician_job');
@@ -322,50 +705,125 @@ export default function App() {
     }
   };
 
-  const showBottomNav = [
+  const showBottomNav = isLoggedIn && [
     'dashboard', 
     'schools', 
-    'lab_map'
+    'lab_map',
+    'tickets',
+    'technician_job',
+    'ticket_details'
   ].includes(currentScreen);
 
-  const openTicketsCount = tickets.filter(t => t.status !== 'resolved' && t.status !== 'closed').length;
+  // Filter tickets to current user's school for badge count
+  const visibleTickets = currentUser?.role === 'school_staff'
+    ? tickets.filter(t => t.schoolId === currentUser.schoolId || t.schoolName === activeSchool?.name)
+    : tickets;
+
+  const openTicketsCount = visibleTickets.filter(t => t.status !== 'resolved' && t.status !== 'closed').length;
 
   return (
     <div className="campuscare-app-shell">
       <div className="mobile-phone-viewport">
-        {/* First Time User Onboarding Guide Modal */}
-        {showGuideModal && (
-          <FirstTimeGuideModal 
-            onClose={() => setShowGuideModal(false)}
-          />
+        {/* Real-time Alert for Field Engineers */}
+        {engineerNotification && (
+          <div style={{
+            background: '#0f2942',
+            color: '#ffffff',
+            padding: '10px 16px',
+            fontSize: '11px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            zIndex: 99,
+            borderBottom: '2px solid #f59e0b',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '14px' }}>🚨</span>
+              <span>{engineerNotification}</span>
+            </div>
+            <button
+              onClick={() => {
+                setEngineerNotification(null);
+                setCurrentScreen('technician_job');
+                setActiveBottomNav('engineers');
+              }}
+              style={{
+                background: '#f59e0b',
+                color: '#000000',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '4px 10px',
+                fontSize: '10px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              Open Pool
+            </button>
+          </div>
         )}
 
         {/* Screen Routing Switcher */}
         {currentScreen === 'login' && (
-          <CampusCareLogin onLogin={handleLogin} />
+          <CampusCareLogin 
+            onLogin={handleLogin}
+            registeredSchools={schools}
+            onRegisterSchool={handleRegisterNewSchool}
+            isDbConnected={isDbConnected}
+            onOpenDbConfig={() => setShowDbModal(true)}
+            onCheckOta={handleCheckOta}
+          />
         )}
 
         {currentScreen === 'dashboard' && (
           <CampusCareDashboard 
             tickets={tickets}
+            currentUser={currentUser}
+            currentSchool={activeSchool}
+            schoolLabs={schoolLabs}
+            labDevices={currentLabDevices}
             onSelectTicket={handleSelectTicket}
+            isDbConnected={isDbConnected}
+            onOpenDbConfig={() => setShowDbModal(true)}
             onNavigateTo={(screen) => {
               setCurrentScreen(screen);
               if (screen === 'tickets') setActiveBottomNav('tickets');
               if (screen === 'schools') setActiveBottomNav('schools');
-              if (screen === 'lab_map') setActiveBottomNav('home');
+              if (screen === 'lab_map') setActiveBottomNav('lab_map');
+              if (screen === 'create_ticket') setActiveBottomNav('create_ticket');
+              if (screen === 'engineers') setActiveBottomNav('engineers');
             }}
             onQuickAction={(action) => {
               if (action === 'add_school') setCurrentScreen('schools');
-              else if (action === 'assign_ticket') setCurrentScreen('ticket_details');
-              else if (action === 'reports') setCurrentScreen('ticket_timeline');
+              else if (action === 'assign_ticket') setCurrentScreen('technician_job');
+              else if (action === 'reports') setCurrentScreen('tickets');
+            }}
+          />
+        )}
+
+        {currentScreen === 'tickets' && (
+          <CampusCareTicketsList 
+            tickets={tickets}
+            currentUser={currentUser}
+            currentSchool={activeSchool}
+            onSelectTicket={handleSelectTicket}
+            onRaiseTicket={() => {
+              setCurrentScreen('create_ticket');
+              setActiveBottomNav('create_ticket');
+            }}
+            onBack={() => {
+              setCurrentScreen('dashboard');
+              setActiveBottomNav('home');
             }}
           />
         )}
 
         {currentScreen === 'schools' && (
           <CampusCareSchoolsList 
-            schools={schools}
+            schools={userSchools}
+            currentUser={currentUser}
             onSelectSchool={handleSelectSchool}
             onBack={() => {
               setCurrentScreen('dashboard');
@@ -376,14 +834,21 @@ export default function App() {
 
         {currentScreen === 'lab_map' && (
           <CampusCareLabMap 
-            school={selectedSchool}
-            lab={selectedSchool?.labs?.[0]}
-            devices={labDevices}
+            school={activeSchool}
+            lab={currentLab}
+            allLabs={schoolLabs}
+            devices={currentLabDevices}
+            onSelectLab={handleSelectLab}
+            onAddLab={handleAddLab}
+            onUpdateLab={handleUpdateLab}
+            onDeleteLab={handleDeleteLab}
             onSelectDevice={handleSelectDevice}
+            onAddDevice={handleAddDevice}
+            onOpenTicketFromSystem={handleOpenTicketFromSystem}
             onOpenEditor={() => setCurrentScreen('lab_editor')}
             onBack={() => {
-              setCurrentScreen('schools');
-              setActiveBottomNav('schools');
+              setCurrentScreen('dashboard');
+              setActiveBottomNav('home');
             }}
           />
         )}
@@ -391,8 +856,9 @@ export default function App() {
         {currentScreen === 'system_details' && (
           <CampusCareSystemDetails 
             device={selectedDevice}
-            school={selectedSchool}
-            lab={selectedSchool?.labs?.[0]}
+            school={activeSchool}
+            lab={currentLab}
+            onUpdateDevice={handleUpdateDevice}
             onRaiseTicket={handleOpenTicketFromSystem}
             onBack={() => setCurrentScreen('lab_map')}
           />
@@ -400,12 +866,13 @@ export default function App() {
 
         {currentScreen === 'create_ticket' && (
           <CampusCareCreateTicket 
-            schools={schools}
-            currentSchool={selectedSchool}
-            currentLab={selectedSchool?.labs?.[0]}
+            schools={userSchools}
+            currentSchool={activeSchool}
+            currentLab={currentLab}
             currentDevice={selectedDevice}
+            currentUser={currentUser}
             onSubmitTicket={handleCreateTicketSubmit}
-            onBack={() => setCurrentScreen('system_details')}
+            onBack={() => setCurrentScreen('dashboard')}
           />
         )}
 
@@ -417,8 +884,8 @@ export default function App() {
             onCloseTicket={() => handleUpdateTicketStatus(selectedTicket.id, 'closed')}
             onOpenTimeline={() => setCurrentScreen('ticket_timeline')}
             onBack={() => {
-              setCurrentScreen('dashboard');
-              setActiveBottomNav('home');
+              setCurrentScreen('tickets');
+              setActiveBottomNav('tickets');
             }}
           />
         )}
@@ -433,40 +900,85 @@ export default function App() {
 
         {currentScreen === 'technician_job' && (
           <CampusCareTechnicianJob 
+            tickets={tickets}
             ticket={selectedTicket}
+            currentUser={currentUser}
+            onClaimTicket={handleClaimTicket}
+            onReleaseTicket={handleReleaseTicket}
             onToggleChecklistItem={handleToggleChecklistItem}
             onUpdateStatus={handleUpdateTicketStatus}
             onNavigateToMap={() => {
               setCurrentScreen('lab_map');
-              setActiveBottomNav('home');
+              setActiveBottomNav('lab_map');
             }}
             onBack={() => {
-              setCurrentScreen('ticket_details');
-              setActiveBottomNav('tickets');
+              setCurrentScreen('dashboard');
+              setActiveBottomNav('home');
             }}
           />
         )}
 
         {currentScreen === 'lab_editor' && (
           <CampusCareLabEditor 
-            lab={selectedSchool?.labs?.[0]}
-            devices={labDevices}
+            lab={currentLab}
+            devices={currentLabDevices}
             onSaveLab={handleSaveLabLayout}
             onBack={() => setCurrentScreen('lab_map')}
           />
         )}
 
-        {/* Global Bottom Navigation (Visible on Core Hub Screens) */}
+        {/* Global Bottom Navigation with Strict Role-Based Visibility */}
         {showBottomNav && (
           <div className="bottom-nav-bar">
+            {/* 1. Home Tab */}
             <button 
               className={`bottom-nav-item ${activeBottomNav === 'home' ? 'active' : ''}`}
               onClick={() => handleBottomNavClick('home')}
             >
               <Home size={18} />
-              <span>Home</span>
+              <span>{currentUser?.role === 'school_staff' ? 'My School' : 'Home'}</span>
             </button>
 
+            {/* 2. School Staff: Lab Map / Org Admin: Schools List */}
+            {currentUser?.role === 'school_staff' ? (
+              <button 
+                className={`bottom-nav-item ${activeBottomNav === 'lab_map' ? 'active' : ''}`}
+                onClick={() => handleBottomNavClick('lab_map')}
+              >
+                <Monitor size={18} />
+                <span>Lab Map</span>
+              </button>
+            ) : currentUser?.role === 'org_admin' ? (
+              <button 
+                className={`bottom-nav-item ${activeBottomNav === 'schools' ? 'active' : ''}`}
+                onClick={() => handleBottomNavClick('schools')}
+              >
+                <School size={18} />
+                <span>Schools</span>
+              </button>
+            ) : null}
+
+            {/* 3. School Staff: + Raise Ticket / Technician & Admin: Field Jobs */}
+            {currentUser?.role === 'school_staff' ? (
+              <button 
+                className={`bottom-nav-item ${activeBottomNav === 'create_ticket' ? 'active' : ''}`}
+                onClick={() => handleBottomNavClick('create_ticket')}
+                style={{ color: '#2563eb' }}
+              >
+                <PlusCircle size={20} />
+                <span style={{ fontWeight: '700' }}>+ Report</span>
+              </button>
+            ) : (
+              <button 
+                className={`bottom-nav-item ${activeBottomNav === 'engineers' ? 'active' : ''}`}
+                onClick={() => handleBottomNavClick('engineers')}
+              >
+                <UserCheck size={18} />
+                <span>{currentUser?.role === 'technician' ? 'Field Jobs' : 'Engineers'}</span>
+              </button>
+            )}
+
+            {/* 4. Tickets Tab */}
             <button 
               className={`bottom-nav-item ${activeBottomNav === 'tickets' ? 'active' : ''}`}
               onClick={() => handleBottomNavClick('tickets')}
@@ -475,25 +987,10 @@ export default function App() {
               {openTicketsCount > 0 && (
                 <span className="bottom-nav-badge">{openTicketsCount}</span>
               )}
-              <span>Tickets</span>
+              <span>{currentUser?.role === 'school_staff' ? 'My Tickets' : 'Tickets'}</span>
             </button>
 
-            <button 
-              className={`bottom-nav-item ${activeBottomNav === 'schools' ? 'active' : ''}`}
-              onClick={() => handleBottomNavClick('schools')}
-            >
-              <School size={18} />
-              <span>Schools</span>
-            </button>
-
-            <button 
-              className={`bottom-nav-item ${activeBottomNav === 'engineers' ? 'active' : ''}`}
-              onClick={() => handleBottomNavClick('engineers')}
-            >
-              <UserCheck size={18} />
-              <span>Engineers</span>
-            </button>
-
+            {/* 5. More / Account Tab */}
             <button 
               className={`bottom-nav-item ${activeBottomNav === 'more' ? 'active' : ''}`}
               onClick={() => handleBottomNavClick('more')}
@@ -540,7 +1037,7 @@ export default function App() {
                     {currentUser?.name || 'Administrator'}
                   </div>
                   <div style={{ fontSize: '12px', color: '#64748b', textTransform: 'capitalize' }}>
-                    {currentUser?.role?.replace('_', ' ') || 'Admin'} • CampusCare
+                    {currentUser?.role?.replace('_', ' ') || 'Admin'} • {currentUser?.schoolName || 'CampusCare'}
                   </div>
                 </div>
                 <button 
@@ -552,24 +1049,67 @@ export default function App() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px 0' }}>
+                {/* Database & Cloud Sync Settings Button */}
                 <button
-                  onClick={() => { setShowMoreSheet(false); setShowGuideModal(true); }}
+                  onClick={() => { setShowMoreSheet(false); setShowDbModal(true); }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '12px',
+                    justifyContent: 'space-between',
                     padding: '12px 14px',
                     borderRadius: '12px',
                     border: '1px solid #e2e8f0',
                     background: '#f8fafc',
-                    color: '#1e293b',
+                    color: '#0f172a',
                     fontSize: '13px',
                     fontWeight: '600',
                     cursor: 'pointer'
                   }}
                 >
-                  <HelpCircle size={18} color="#2563eb" />
-                  <span>App Guide & User Tour</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Database size={18} color="#00bceb" />
+                    <span>Database & Cloud Sync</span>
+                  </div>
+                  <span style={{
+                    fontSize: '10px',
+                    padding: '2px 8px',
+                    borderRadius: '10px',
+                    background: isDbConnected ? '#ecfdf5' : '#fffbeb',
+                    color: isDbConnected ? '#047857' : '#b45309',
+                    border: isDbConnected ? '1px solid #a7f3d0' : '1px solid #fde68a',
+                    fontWeight: 700
+                  }}>
+                    {isDbConnected ? '🟢 Live Supabase' : '🟡 Local Mode'}
+                  </span>
+                </button>
+
+                {/* Over-The-Air (OTA) Updates Button */}
+                <button
+                  onClick={async () => {
+                    setShowMoreSheet(false);
+                    await handleCheckOta();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    color: '#0f172a',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <ArrowDownCircle size={18} color="#2563eb" />
+                    <span>Check for OTA Updates</span>
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>
+                    v{APP_CURRENT_VERSION}
+                  </span>
                 </button>
 
                 <button
@@ -581,36 +1121,39 @@ export default function App() {
                     padding: '12px 14px',
                     borderRadius: '12px',
                     border: '1px solid #fee2e2',
-                    background: '#fff1f2',
-                    color: '#e11d48',
+                    background: '#fef2f2',
+                    color: '#dc2626',
                     fontSize: '13px',
                     fontWeight: '600',
                     cursor: 'pointer'
                   }}
                 >
-                  <LogOut size={18} color="#e11d48" />
-                  <span>Sign Out / Switch Role</span>
+                  <LogOut size={18} />
+                  <span>Log Out ({currentUser?.email || 'Account'})</span>
                 </button>
               </div>
-
-              <button
-                onClick={() => setShowMoreSheet(false)}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  background: '#f1f5f9',
-                  color: '#475569',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                Close
-              </button>
             </div>
           </div>
+        )}
+
+        {/* Supabase Database Configuration & Status Modal */}
+        <SupabaseConfigModal 
+          isOpen={showDbModal}
+          onClose={() => setShowDbModal(false)}
+          onConfigSaved={({ isConnected, reloaded }) => {
+            setIsDbConnected(isConnected);
+            if (isConnected || reloaded) {
+              loadCloudData();
+            }
+          }}
+        />
+
+        {/* Over-The-Air (OTA) Update Modal */}
+        {showOtaModal && otaInfo && (
+          <OtaUpdateModal 
+            otaInfo={otaInfo}
+            onClose={() => setShowOtaModal(false)}
+          />
         )}
       </div>
     </div>

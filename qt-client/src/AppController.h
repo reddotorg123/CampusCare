@@ -4,6 +4,10 @@
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonValue>
+#include <QJsonDocument>
 
 class AppController : public QObject {
     Q_OBJECT
@@ -20,6 +24,7 @@ class AppController : public QObject {
     Q_PROPERTY(QVariantList tickets READ tickets NOTIFY ticketsChanged)
     Q_PROPERTY(QVariantList schoolTickets READ schoolTickets NOTIFY ticketsChanged)
     Q_PROPERTY(QVariantList technicianTickets READ technicianTickets NOTIFY ticketsChanged)
+    Q_PROPERTY(QVariantList openTickets READ openTickets NOTIFY ticketsChanged)
     Q_PROPERTY(QVariantMap selectedWorkstation READ selectedWorkstation NOTIFY selectedWorkstationChanged)
     Q_PROPERTY(QVariantMap selectedTicket READ selectedTicket NOTIFY selectedTicketChanged)
     Q_PROPERTY(QVariantList checklist READ checklist NOTIFY checklistChanged)
@@ -49,11 +54,12 @@ public:
     QString currentLabName() const { return m_currentLabName; }
     QString validationError() const { return m_validationError; }
 
-    QVariantList schools() const { return m_schools; }
+    QVariantList schools() const;
     QVariantList workstations() const { return m_workstations; }
     QVariantList tickets() const { return m_tickets; }
     QVariantList schoolTickets() const;
     QVariantList technicianTickets() const;
+    QVariantList openTickets() const;
     QVariantMap selectedWorkstation() const { return m_selectedWorkstation; }
     QVariantMap selectedTicket() const { return m_selectedTicket; }
     QVariantList checklist() const { return m_checklist; }
@@ -81,13 +87,15 @@ public:
     Q_INVOKABLE void selectWorkstation(const QString &code);
     Q_INVOKABLE void selectTicket(const QString &ticketNumber);
 
-    // Ticket Lifecycle Operations
+    // Ticket Lifecycle Operations & Engineer Reassignment
     Q_INVOKABLE bool submitTicketWithValidation(const QString &title, const QString &description, const QString &priority, const QString &category);
     Q_INVOKABLE bool submitTicket(const QString &title, const QString &description, const QString &priority, const QString &category) {
         return submitTicketWithValidation(title, description, priority, category);
     }
     Q_INVOKABLE void resolveTicket(const QString &ticketNumber, const QString &resolutionNote = "");
     Q_INVOKABLE void assignTechnician(const QString &ticketNumber, const QString &techName);
+    Q_INVOKABLE void claimJob(const QString &ticketNumber);
+    Q_INVOKABLE void releaseJob(const QString &ticketNumber, const QString &reason);
     Q_INVOKABLE void updateTicketStatus(const QString &ticketNumber, const QString &newStatus);
     Q_INVOKABLE void toggleChecklistItem(int index);
     Q_INVOKABLE void addTimelineMessage(const QString &text);
@@ -98,6 +106,11 @@ public:
     Q_INVOKABLE bool addWorkstation(const QString &code, const QString &assetCode, int x, int y, int row, int col, const QString &status = "working");
     Q_INVOKABLE void removeWorkstation(const QString &code);
     Q_INVOKABLE void setPodiumPosition(int x, int y);
+
+    // Network / Supabase Data Ingestion
+    Q_INVOKABLE void setTicketsFromNetwork(const QJsonArray &tickets);
+    Q_INVOKABLE void setSchoolsFromNetwork(const QJsonArray &schools);
+    Q_INVOKABLE void setWorkstationsFromNetwork(const QJsonArray &workstations);
 
 signals:
     void currentScreenChanged();
@@ -128,9 +141,9 @@ private:
     QString m_currentRole = "school_admin";
     bool m_isAuthenticated = false;
     bool m_hasSeenOnboarding = false;
-    QString m_currentUserName = "Dr. K. Jayachandran";
-    QString m_currentUserSchoolName = "Velammal Matric Higher Secondary";
-    QString m_currentLabName = "Main Computer Lab (Lab 1)";
+    QString m_currentUserName = "";
+    QString m_currentUserSchoolName = "";
+    QString m_currentLabName = "";
     QString m_validationError = "";
 
     QVariantList m_schools;

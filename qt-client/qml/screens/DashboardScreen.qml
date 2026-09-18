@@ -51,7 +51,7 @@ ScrollView {
                         Layout.fillWidth: true
                         spacing: 2
                         Text {
-                            text: "Velammal Matric Higher Secondary School"
+                            text: appCtrl.currentUserSchoolName || "CampusCare MSP Central"
                             font.bold: true
                             font.pixelSize: scrollRoot.isMobile ? 15 : 18
                             color: "#0F172A"
@@ -59,7 +59,7 @@ ScrollView {
                             Layout.fillWidth: true
                         }
                         Text {
-                            text: "Campus AMC Code: AMC-2024-VMHS • Main Computer Lab • 30 Workstations"
+                            text: appCtrl.currentLabName ? (appCtrl.currentLabName + " • Institutional Asset Portal") : "Central IT AMC Management"
                             font.pixelSize: 11
                             color: "#64748B"
                             wrapMode: Text.WordWrap

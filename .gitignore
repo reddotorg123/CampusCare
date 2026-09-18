@@ -12,6 +12,9 @@ dist
 dist-ssr
 dist-windows
 dist-apk
+releases/windows/
+releases/android/*.apk
+releases/web/
 build
 *.local
 .env

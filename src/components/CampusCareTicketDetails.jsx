@@ -1,5 +1,5 @@
-import React from 'react';
-import { ArrowLeft, MoreVertical, Phone, Clock, Paperclip, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, MoreVertical, Phone, Clock, Paperclip, ChevronRight, X, ZoomIn } from 'lucide-react';
 
 export function CampusCareTicketDetails({ 
   ticket,
@@ -9,27 +9,29 @@ export function CampusCareTicketDetails({
   onOpenTimeline,
   onBack 
 }) {
+  const [lightboxImage, setLightboxImage] = useState(null);
+
   const t = ticket || {
-    ticketNumber: '#TKT-1024',
-    status: 'open',
-    createdAt: 'Mon, 15 Sep 2025  10:24 AM',
-    labName: 'Lab 1',
-    systemName: 'PC-07',
-    problem: 'Monitor not working',
-    schoolName: 'Velammal Matric Hr Sec School',
-    reportedBy: 'Mr. Arun (Lab Staff)',
-    reporterPhone: '+91 94440 12345',
-    assignedTo: 'Karthik V.',
-    priority: 'High',
-    category: 'Hardware Issue',
-    description: 'Monitor shows no display. Power light is on.',
-    attachments: [
-      { name: 'image1.jpg', url: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=300&auto=format&fit=crop&q=80' }
-    ]
+    ticketNumber: 'N/A',
+    status: 'created',
+    createdAt: '',
+    labName: '',
+    systemName: '',
+    problem: '',
+    schoolName: '',
+    reportedBy: '',
+    reporterPhone: '',
+    assignedTo: 'Unassigned',
+    priority: 'Normal',
+    category: 'General',
+    description: '',
+    attachments: []
   };
 
   const handleCallReporter = () => {
-    window.location.href = `tel:${t.reporterPhone || '+919444012345'}`;
+    if (t.reporterPhone) {
+      window.location.href = `tel:${t.reporterPhone}`;
+    }
   };
 
   return (
@@ -40,13 +42,15 @@ export function CampusCareTicketDetails({
           <button className="icon-button" onClick={onBack} title="Back">
             <ArrowLeft size={20} />
           </button>
-          <span className="screen-header-title">
-            Ticket Details
-          </span>
+          <div>
+            <span className="screen-header-title">
+              Ticket Details
+            </span>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+              {t.ticketNumber} • {t.schoolName}
+            </div>
+          </div>
         </div>
-        <button className="icon-button" title="Menu">
-          <MoreVertical size={18} />
-        </button>
       </div>
 
       <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -66,13 +70,15 @@ export function CampusCareTicketDetails({
               <span style={{ 
                 fontSize: '11px', 
                 fontWeight: '700', 
-                color: 'var(--status-issue)', 
-                background: 'var(--status-issue-bg)',
+                color: t.status === 'resolved' ? 'var(--status-working)' : 'var(--status-issue)', 
+                background: t.status === 'resolved' ? 'var(--status-working-bg)' : 'var(--status-issue-bg)',
                 padding: '2px 8px',
                 borderRadius: '10px',
                 border: '1px solid rgba(239, 68, 68, 0.2)'
               }}>
-                {t.status === 'in_progress' ? 'In Progress' : 'Open'}
+                {t.status === 'in_progress' ? 'In Progress' :
+                 t.status === 'resolved' ? 'Resolved' :
+                 t.status === 'closed' ? 'Closed' : 'Active / Unsolved'}
               </span>
             </div>
             <span style={{ fontSize: '10px', color: 'var(--text-light)', fontWeight: '600' }}>
@@ -86,18 +92,18 @@ export function CampusCareTicketDetails({
                 {t.labName} – {t.systemName}
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                {t.problem}
+                {t.problem || t.title}
               </div>
             </div>
             <span style={{
               fontSize: '10px',
               fontWeight: '700',
-              color: 'var(--status-issue)',
-              background: 'var(--status-issue-bg)',
+              color: t.priority?.toLowerCase() === 'high' ? 'var(--status-issue)' : 'var(--navy-800)',
+              background: t.priority?.toLowerCase() === 'high' ? 'var(--status-issue-bg)' : 'var(--blue-50)',
               padding: '2px 8px',
               borderRadius: '4px'
             }}>
-              High
+              {(t.priority || 'Medium').toUpperCase()}
             </span>
           </div>
         </div>
@@ -135,7 +141,7 @@ export function CampusCareTicketDetails({
           {[
             { label: 'School', value: t.schoolName },
             { label: 'Lab', value: t.labName },
-            { label: 'System', value: t.systemName || 'PC-07' },
+            { label: 'System', value: t.systemName || t.systemId || 'PC-01' },
             { 
               label: 'Reported By', 
               value: t.reportedBy,
@@ -149,10 +155,10 @@ export function CampusCareTicketDetails({
                 </button>
               )
             },
-            { label: 'Assigned To', value: t.assignedTo || 'Karthik V.' },
-            { label: 'Priority', value: t.priority ? (t.priority.charAt(0).toUpperCase() + t.priority.slice(1)) : 'High' },
-            { label: 'Category', value: t.category },
-            { label: 'Description', value: t.description }
+            { label: 'Assigned To', value: t.assignedTo || t.technician || 'Unassigned' },
+            { label: 'Priority', value: (t.priority || 'Medium').toUpperCase() },
+            { label: 'Category', value: t.category || 'General' },
+            { label: 'Description', value: t.description || 'None' }
           ].map((row, idx, arr) => (
             <div 
               key={row.label}
@@ -177,62 +183,179 @@ export function CampusCareTicketDetails({
           ))}
         </div>
 
-        {/* Attachments Section */}
-        <div>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '8px' }}>
-            Attachments
+        {/* REAL ATTACHMENTS & PHOTO GALLERY */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '10px',
+          border: '1px solid var(--border-light)',
+          padding: '14px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)' }}>
+              Attached Equipment Photos ({t.attachments?.length || 0})
+            </div>
+            {t.attachments?.length > 0 && (
+              <span style={{ fontSize: '10px', color: 'var(--blue-600)', fontWeight: 600 }}>
+                Tap photo to enlarge
+              </span>
+            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {t.attachments?.map((att, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
-                  <img src={att.url} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+
+          {t.attachments && t.attachments.length > 0 ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              {t.attachments.map((att, idx) => (
+                <div 
+                  key={idx}
+                  onClick={() => setLightboxImage(att)}
+                  style={{
+                    position: 'relative',
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    border: '1px solid var(--border-mid)',
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                >
+                  <img 
+                    src={att.url} 
+                    alt={att.name || 'Photo'} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: 0,
+                    transition: 'opacity 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}
+                  >
+                    <ZoomIn size={18} color="#ffffff" />
+                  </div>
+                  <div style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    background: 'rgba(15, 23, 42, 0.75)',
+                    color: '#ffffff',
+                    fontSize: '8px',
+                    padding: '2px 4px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {att.name}
+                  </div>
                 </div>
-                <div style={{ 
-                  background: '#ffffff', 
-                  border: '1px solid var(--border-mid)', 
-                  borderRadius: '6px', 
-                  padding: '4px 8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontSize: '10.5px',
-                  fontWeight: '600',
-                  color: 'var(--text-body)'
-                }}>
-                  <Paperclip size={12} />
-                  {att.name}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              No photos attached to this ticket.
+            </div>
+          )}
         </div>
 
         {/* Action Buttons: [ Assign ] [ Update ] [ Close ] */}
-        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
           <button 
             onClick={onAssign}
             className="btn-primary-navy"
             style={{ flex: 1, padding: '10px' }}
           >
-            Assign
+            Assign Tech
           </button>
           <button 
             onClick={onUpdateStatus}
             className="btn-primary-navy"
             style={{ flex: 1, padding: '10px' }}
           >
-            Update
+            Work Order
           </button>
           <button 
             onClick={onCloseTicket}
             className="btn-primary-navy"
             style={{ flex: 1, padding: '10px', background: 'var(--navy-900)' }}
           >
-            Close
+            Close Ticket
           </button>
         </div>
       </div>
+
+      {/* Image Lightbox Modal */}
+      {lightboxImage && (
+        <div 
+          onClick={() => setLightboxImage(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 120,
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '90%',
+              maxHeight: '80%',
+              background: '#ffffff',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 14px',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#f8fafc'
+            }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--navy-900)' }}>
+                {lightboxImage.name}
+              </span>
+              <button 
+                onClick={() => setLightboxImage(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-main)',
+                  padding: '2px'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <img 
+              src={lightboxImage.url} 
+              alt={lightboxImage.name} 
+              style={{
+                maxWidth: '100%',
+                maxHeight: '65vh',
+                objectFit: 'contain'
+              }} 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

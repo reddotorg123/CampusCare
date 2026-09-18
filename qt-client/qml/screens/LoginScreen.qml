@@ -138,7 +138,6 @@ Rectangle {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
                                         loginRoot.selectedRole = "school_admin";
-                                        emailField.text = "principal@velammal.edu.in";
                                     }
                                 }
                             }
@@ -175,7 +174,6 @@ Rectangle {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
                                         loginRoot.selectedRole = "technician";
-                                        emailField.text = "rajesh.kumar@amcservice.com";
                                     }
                                 }
                             }
@@ -212,7 +210,6 @@ Rectangle {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
                                         loginRoot.selectedRole = "org_admin";
-                                        emailField.text = "admin@campuscare.io";
                                     }
                                 }
                             }
@@ -254,7 +251,8 @@ Rectangle {
                         TextField {
                             id: emailField
                             Layout.fillWidth: true
-                            text: "principal@velammal.edu.in"
+                            placeholderText: "Enter institutional email or username..."
+                            text: ""
                         }
                     }
 
@@ -267,7 +265,8 @@ Rectangle {
                             id: pwdField
                             Layout.fillWidth: true
                             echoMode: TextInput.Password
-                            text: "password123"
+                            placeholderText: "Enter password..."
+                            text: ""
                         }
                     }
 

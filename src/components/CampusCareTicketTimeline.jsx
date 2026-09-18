@@ -9,19 +9,9 @@ export function CampusCareTicketTimeline({
   const [inputText, setInputText] = useState('');
   
   const t = ticket || {
-    ticketNumber: '#TKT-1024',
-    timeline: [
-      { status: 'created', title: 'Ticket Created', by: 'Mr. Arun (Lab Staff)', date: '15 Sep 2025, 10:24 AM', done: true },
-      { status: 'assigned', title: 'Assigned to Technician', by: 'Admin', date: '15 Sep 2025, 11:10 AM', done: true },
-      { status: 'acknowledged', title: 'Technician Acknowledged', by: 'Karthik', date: '15 Sep 2025, 11:30 AM', done: true },
-      { status: 'in_progress', title: 'In Progress', by: 'Diagnosing the issue', date: '15 Sep 2025, 12:15 PM', done: true },
-      { status: 'resolved', title: 'Resolved', by: '', date: '', done: false },
-      { status: 'closed', title: 'Closed', by: '', date: '', done: false }
-    ],
-    communications: [
-      { id: 'c1', sender: 'Karthik', role: 'technician', time: '12:20 PM', text: 'We are checking the issue. Will update soon.' },
-      { id: 'c2', sender: 'Mr. Arun', role: 'school_staff', time: '12:25 PM', text: 'Please carry a VGA cable also.' }
-    ]
+    ticketNumber: 'N/A',
+    timeline: [],
+    communications: []
   };
 
   const handleSend = (e) => {
@@ -30,8 +20,8 @@ export function CampusCareTicketTimeline({
 
     onSendMessage({
       id: `c-${Date.now()}`,
-      sender: 'Karthik',
-      role: 'technician',
+      sender: 'Staff',
+      role: 'school_staff',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       text: inputText.trim()
     });
