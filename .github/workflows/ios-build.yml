@@ -28,10 +28,8 @@ jobs:
         run: |
           mkdir -p ios/App/App/public
           cp -r dist/* ios/App/App/public/
-          # Copy capacitor config too
-          cp capacitor.config.json ios/App/App/capacitor.config.json || true
-          echo "✅ Web assets copied:"
-          ls -la ios/App/App/public/
+          cp capacitor.config.json ios/App/App/capacitor.config.json 2>/dev/null || true
+          echo "✅ Web assets copied: $(ls ios/App/App/public/ | wc -l) items"
 
       - name: Resolve Swift Package Dependencies
         run: |
@@ -40,15 +38,15 @@ jobs:
             -scheme App \
             -clonedSourcePackagesDirPath "${{ github.workspace }}/.spm-cache"
 
-      - name: Build Xcode Archive (Unsigned for Sideloadly)
+      - name: Build iOS App (unsigned, for IPA packaging)
         run: |
-          mkdir -p build
-          xcodebuild \
+          mkdir -p "${{ github.workspace }}/build"
+          xcodebuild build \
             -project ios/App/App.xcodeproj \
             -scheme App \
             -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath "${{ github.workspace }}/build/App.xcarchive" \
+            -sdk iphoneos \
+            -derivedDataPath "${{ github.workspace }}/build/DerivedData" \
             -clonedSourcePackagesDirPath "${{ github.workspace }}/.spm-cache" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
@@ -57,14 +55,23 @@ jobs:
             DEVELOPMENT_TEAM="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            archive
-          echo "✅ Archive built"
+            | tee /tmp/xcodebuild.log | grep -E "error:|warning:|BUILD|Compiling|Linking" || true
+
+      - name: Verify Build Output
+        run: |
+          APP_PATH=$(find "${{ github.workspace }}/build/DerivedData" -name "*.app" -path "*/Products/*" 2>/dev/null | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ No .app found. Build output:"
+            cat /tmp/xcodebuild.log | tail -50
+            exit 1
+          fi
+          echo "✅ Found app: $APP_PATH"
+          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
 
       - name: Package Payload into Sideloadly-Ready IPA
         run: |
           mkdir -p "${{ github.workspace }}/build/Payload"
-          cp -r "${{ github.workspace }}/build/App.xcarchive/Products/Applications/App.app" \
-                "${{ github.workspace }}/build/Payload/"
+          cp -r "$APP_PATH" "${{ github.workspace }}/build/Payload/"
           cd "${{ github.workspace }}/build"
           zip -r CampusCare.ipa Payload
           echo "✅ IPA ready: $(du -sh CampusCare.ipa)"
