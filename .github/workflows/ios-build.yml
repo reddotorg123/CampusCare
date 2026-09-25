@@ -29,7 +29,48 @@ jobs:
           mkdir -p ios/App/App/public
           cp -r dist/* ios/App/App/public/
           cp capacitor.config.json ios/App/App/capacitor.config.json 2>/dev/null || true
-          echo "✅ Web assets copied: $(ls ios/App/App/public/ | wc -l) items"
+          echo "✅ Web assets copied"
+
+      - name: Set up self-signed code signing identity
+        run: |
+          # Create a temporary self-signed certificate for code signing
+          # This allows xcodebuild to fully process Info.plist and produce a complete .app
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+
+          # Generate a self-signed certificate
+          cat > /tmp/cert.conf << 'EOF'
+          [req]
+          distinguished_name = req_distinguished_name
+          x509_extensions = v3_req
+          prompt = no
+          [req_distinguished_name]
+          CN = CampusCare Development
+          [v3_req]
+          keyUsage = digitalSignature
+          extendedKeyUsage = codeSigning
+          EOF
+
+          openssl req -x509 -newkey rsa:2048 -keyout /tmp/key.pem \
+            -out /tmp/cert.pem -days 1 -nodes \
+            -subj "/CN=iPhone Developer/O=CampusCare/C=US" 2>/dev/null
+
+          openssl pkcs12 -export -out /tmp/dev.p12 \
+            -inkey /tmp/key.pem -in /tmp/cert.pem \
+            -passout pass:campuscare 2>/dev/null
+
+          security import /tmp/dev.p12 -k build.keychain \
+            -P campuscare -T /usr/bin/codesign 2>/dev/null
+
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "" build.keychain 2>/dev/null || true
+
+          # Get the identity name
+          IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep "iPhone Developer" | head -1 | awk '{print $3}' | tr -d '"')
+          echo "Code signing identity: $IDENTITY"
+          echo "SIGN_IDENTITY=$IDENTITY" >> $GITHUB_ENV
 
       - name: Resolve Swift Package Dependencies
         run: |
@@ -38,10 +79,9 @@ jobs:
             -scheme App \
             -clonedSourcePackagesDirPath "${{ github.workspace }}/.spm-cache"
 
-      - name: Build iOS App (ad-hoc signed)
+      - name: Build iOS App (self-signed for complete .app bundle)
         run: |
           mkdir -p "${{ github.workspace }}/build"
-          set -o pipefail
           xcodebuild build \
             -project ios/App/App.xcodeproj \
             -scheme App \
@@ -51,41 +91,22 @@ jobs:
             -clonedSourcePackagesDirPath "${{ github.workspace }}/.spm-cache" \
             CODE_SIGNING_ALLOWED=YES \
             CODE_SIGNING_REQUIRED=YES \
-            CODE_SIGN_IDENTITY="-" \
+            "CODE_SIGN_IDENTITY=$SIGN_IDENTITY" \
             CODE_SIGN_STYLE="Manual" \
             DEVELOPMENT_TEAM="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
-            COMPILER_INDEX_STORE_ENABLE=NO 2>&1 | tail -30
-          echo "✅ xcodebuild finished (exit $?)"
-
-      - name: Find and verify .app bundle
-        run: |
-          echo "=== Searching for .app bundles ==="
-          find "${{ github.workspace }}/build/DerivedData" -name "*.app" 2>/dev/null || echo "No .app found"
-          echo "=== Products directories ==="
-          find "${{ github.workspace }}/build/DerivedData/Build/Products" -maxdepth 2 -type d 2>/dev/null || echo "No Products dir"
+            OTHER_CODE_SIGN_FLAGS="--keychain build.keychain" \
+            COMPILER_INDEX_STORE_ENABLE=NO
+          echo "✅ Build succeeded"
 
       - name: Package Payload into Sideloadly-Ready IPA
         run: |
-          # Search broadly across all Products subdirectories
           APP_PATH=$(find "${{ github.workspace }}/build/DerivedData/Build/Products" \
-            -name "*.app" -not -name "*.app.dSYM" 2>/dev/null | head -1)
+            -name "*.app" -not -name "*.dSYM" 2>/dev/null | head -1)
 
-          if [ -z "$APP_PATH" ]; then
-            echo "❌ No .app found anywhere"
-            exit 1
-          fi
+          echo "App path: $APP_PATH"
+          ls "$APP_PATH/" || true
 
-          echo "✅ Found: $APP_PATH"
-
-          # If Info.plist is missing, copy from source
-          if [ ! -f "$APP_PATH/Info.plist" ]; then
-            echo "⚠️ Info.plist missing - copying from source"
-            cp ios/App/App/Info.plist "$APP_PATH/Info.plist"
-          fi
-          echo "✅ Info.plist: $(plutil -p "$APP_PATH/Info.plist" | grep CFBundleIdentifier || echo 'present')"
-
-          # Package into IPA
           mkdir -p "${{ github.workspace }}/build/Payload"
           cp -r "$APP_PATH" "${{ github.workspace }}/build/Payload/"
           cd "${{ github.workspace }}/build"
