@@ -12,7 +12,6 @@ import {
   Building2,
   BookOpen,
   School,
-  Sparkles,
   Hammer,
   Plus
 } from 'lucide-react';

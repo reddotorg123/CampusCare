@@ -13,7 +13,7 @@ import { CampusCareTicketsList } from './components/CampusCareTicketsList';
 import SupabaseConfigModal from './components/SupabaseConfigModal';
 import { OtaUpdateModal } from './components/OtaUpdateModal';
 import { checkOtaUpdate, APP_CURRENT_VERSION } from './services/otaService';
-import { INITIAL_SCHOOLS, INITIAL_TICKETS } from './data/labData';
+import { INITIAL_SCHOOLS, INITIAL_TICKETS, generateInitialLabDevices } from './data/labData';
 import { 
   isLiveDb, 
   fetchSchoolsFromDb, 
@@ -28,61 +28,6 @@ import {
 
 import { Home, Ticket, School, UserCheck, MoreHorizontal, LogOut, Monitor, PlusCircle, Database, ArrowDownCircle } from 'lucide-react';
 import './styles/campuscare.css';
-
-// Helper to generate clean lab workstations without hardcoded fake data
-export function generateInitialLabDevices(count = 20, schoolCode = 'PC') {
-  const devices = [];
-  const cols = 5;
-  for (let i = 1; i <= count; i++) {
-    const numStr = String(i).padStart(2, '0');
-    const code = `PC-${numStr}`;
-    const r = Math.floor((i - 1) / cols);
-    const c = (i - 1) % cols;
-    devices.push({
-      id: `dev-pc-${numStr}`,
-      name: code,
-      code: code,
-      assetCode: `${schoolCode}-PC-0${numStr}`,
-      status: 'working',
-      type: 'pc',
-      coords: {
-        x: 35 + (c * 66),
-        y: 60 + (r * 78)
-      },
-      width: 52,
-      height: 44,
-      makeModel: 'Standard Lab Workstation',
-      processor: 'Intel Core i5',
-      ram: '8 GB',
-      storage: '256 GB SSD',
-      os: 'Windows 11 Pro',
-      ip: `192.168.1.${100 + i}`
-    });
-  }
-
-  // Add configurable Teacher's Desk & Entrance
-  devices.push({
-    id: 'element-teacher-desk',
-    type: 'teacher_desk',
-    name: "Teacher's Desk",
-    code: "TEACHER",
-    coords: { x: 280, y: 340 },
-    width: 88,
-    height: 44
-  });
-
-  devices.push({
-    id: 'element-main-entrance',
-    type: 'entrance',
-    name: "Main Entrance",
-    code: "ENTRANCE",
-    coords: { x: 10, y: 350 },
-    width: 68,
-    height: 28
-  });
-
-  return devices;
-}
 
 export default function App() {
   // Clean persistent storage namespace (v3 - zero fake demo data)
@@ -117,7 +62,6 @@ export default function App() {
   });
 
   const [activeBottomNav, setActiveBottomNav] = useState('home');
-  const [showGuideModal, setShowGuideModal] = useState(false);
   const [showMoreSheet, setShowMoreSheet] = useState(false);
   const [showDbModal, setShowDbModal] = useState(false);
   const [isDbConnected, setIsDbConnected] = useState(() => isLiveDb());

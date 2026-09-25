@@ -15,8 +15,7 @@ import {
   Plus, 
   Send, 
   Wrench, 
-  RotateCcw,
-  Sparkles
+  RotateCcw
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { ISSUE_PRESETS } from '../data/labData';

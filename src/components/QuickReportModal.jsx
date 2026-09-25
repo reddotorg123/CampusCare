@@ -2,13 +2,7 @@ import React, { useState } from 'react';
 import { 
   X, 
   Send, 
-  AlertTriangle, 
-  Monitor, 
-  Printer, 
-  Check, 
-  Layers, 
-  Wrench,
-  Sparkles
+  Wrench
 } from 'lucide-react';
 import { ISSUE_PRESETS } from '../data/labData';
 

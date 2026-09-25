@@ -99,3 +99,130 @@ export const testSupabaseConnection = async (testUrl, testKey) => {
     return { success: false, error: err.message || 'Connection failed. Check your network or URL.' };
   }
 };
+
+/**
+ * Mail ID / Email Authentication APIs
+ */
+export const signInWithEmailPassword = async (email, password) => {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, error: 'Database backend not configured.' };
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password: password
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, user: data.user, session: data.session };
+  } catch (err) {
+    return { success: false, error: err.message || 'Email authentication failed.' };
+  }
+};
+
+export const signUpWithEmailPassword = async (email, password, userMetadata = {}) => {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, error: 'Database backend not configured.' };
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password: password,
+      options: {
+        data: userMetadata
+      }
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { 
+      success: true, 
+      user: data.user, 
+      session: data.session,
+      requiresEmailVerification: !data.session && !!data.user
+    };
+  } catch (err) {
+    return { success: false, error: err.message || 'Email registration failed.' };
+  }
+};
+
+export const sendEmailOtp = async (email) => {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, error: 'Database backend not configured.' };
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: {
+        shouldCreateUser: true
+      }
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Failed to send OTP code.' };
+  }
+};
+
+export const verifyEmailOtp = async (email, token) => {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, error: 'Database backend not configured.' };
+  }
+
+  try {
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token: token.trim(),
+      type: 'email'
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, user: data.user, session: data.session };
+  } catch (err) {
+    return { success: false, error: err.message || 'Failed to verify OTP code.' };
+  }
+};
+
+export const signOutUser = async () => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: true };
+
+  try {
+    await supabase.auth.signOut();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+export const getCurrentAuthUser = async () => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
+  } catch {
+    return null;
+  }
+};
+

@@ -211,3 +211,57 @@ export const LAB_LAYOUT_PRESETS = [
   { id: 'u_shape', name: 'Perimeter U-Shape (24 PCs)' },
   { id: 'dual_bank', name: 'Dual-Bank Central Aisle (30 PCs)' }
 ];
+
+export function generateInitialLabDevices(count = 20, schoolCode = 'PC') {
+  const devices = [];
+  const cols = 5;
+  for (let i = 1; i <= count; i++) {
+    const numStr = String(i).padStart(2, '0');
+    const code = `PC-${numStr}`;
+    const r = Math.floor((i - 1) / cols);
+    const c = (i - 1) % cols;
+    devices.push({
+      id: `dev-pc-${numStr}`,
+      name: code,
+      code: code,
+      assetCode: `${schoolCode}-PC-0${numStr}`,
+      status: 'working',
+      type: 'pc',
+      coords: {
+        x: 35 + (c * 66),
+        y: 60 + (r * 78)
+      },
+      width: 52,
+      height: 44,
+      makeModel: 'Standard Lab Workstation',
+      processor: 'Intel Core i5',
+      ram: '8 GB',
+      storage: '256 GB SSD',
+      os: 'Windows 11 Pro',
+      ip: `192.168.1.${100 + i}`
+    });
+  }
+
+  devices.push({
+    id: 'element-teacher-desk',
+    type: 'teacher_desk',
+    name: "Teacher's Desk",
+    code: 'TEACHER',
+    coords: { x: 300, y: 350 },
+    width: 86,
+    height: 44
+  });
+
+  devices.push({
+    id: 'element-main-entrance',
+    type: 'entrance',
+    name: 'Main Entrance',
+    code: 'ENTRANCE',
+    coords: { x: 10, y: 360 },
+    width: 68,
+    height: 28
+  });
+
+  return devices;
+}
+

@@ -15,8 +15,7 @@ import {
   UserCheck, 
   Clock, 
   XCircle, 
-  RotateCcw,
-  Sparkles
+  RotateCcw
 } from 'lucide-react';
 
 export function CampusCareTechnicianJob({ 

@@ -21,10 +21,7 @@ import {
   Trash2, 
   PlusCircle, 
   Check, 
-  X,
-  AlertCircle,
-  Sliders,
-  Wrench
+  X
 } from 'lucide-react';
 
 export function CampusCareLabMap({ 
@@ -38,7 +35,7 @@ export function CampusCareLabMap({
   onDeleteLab,
   onSelectDevice,
   onAddDevice,
-  onOpenTicketFromSystem,
+  onOpenTicketFromSystem: _onOpenTicketFromSystem,
   onOpenEditor,
   onBack
 }) {

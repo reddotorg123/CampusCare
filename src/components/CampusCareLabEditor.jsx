@@ -9,8 +9,7 @@ import {
   Check, 
   DoorOpen, 
   Armchair,
-  Edit3,
-  Maximize2
+  Edit3
 } from 'lucide-react';
 
 export function CampusCareLabEditor({ 
@@ -91,7 +90,6 @@ export function CampusCareLabEditor({
   const [draggedId, setDraggedId] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [saveNotification, setSaveNotification] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
   const canvasRef = useRef(null);
 
   const selectedElement = labElements.find(d => d.id === selectedId);
@@ -104,7 +102,9 @@ export function CampusCareLabEditor({
 
     try {
       e.target.setPointerCapture?.(e.pointerId);
-    } catch (_) {}
+    } catch {
+      // Ignore if pointer capture unsupported
+    }
 
     const canvasRect = canvasRef.current?.getBoundingClientRect();
     if (canvasRect) {
@@ -153,7 +153,9 @@ export function CampusCareLabEditor({
     if (draggedId) {
       try {
         e.target.releasePointerCapture?.(e.pointerId);
-      } catch (_) {}
+      } catch {
+        // Ignore if pointer capture release unsupported
+      }
       setDraggedId(null);
     }
   };

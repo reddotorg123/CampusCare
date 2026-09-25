@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Building2, Mail, Lock, Eye, EyeOff, Shield, User, School, MapPin, Monitor, Database } from 'lucide-react';
+import { Building2, Mail, Lock, Eye, EyeOff, Shield, User, School, MapPin, Monitor, Database, KeyRound, Sparkles as _Sparkles, CheckCircle2, ArrowRight } from 'lucide-react';
+import { 
+  signInWithEmailPassword, 
+  signUpWithEmailPassword, 
+  sendEmailOtp, 
+  verifyEmailOtp, 
+  isSupabaseConfigured 
+} from '../supabaseClient';
 
 export function CampusCareLogin({ 
   onLogin, 
@@ -9,13 +16,19 @@ export function CampusCareLogin({
   onOpenDbConfig,
   onCheckOta
 }) {
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'otp'
   
-  // Login fields - clean with NO prefilled dummy data!
+  // Login fields
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [authSuccessMsg, setAuthSuccessMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // OTP Magic Code fields
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
 
   // Signup fields
   const [fullName, setFullName] = useState('');
@@ -96,7 +109,12 @@ export function CampusCareLogin({
 
   const saveAccount = (account) => {
     const accounts = getSavedAccounts();
-    accounts.push(account);
+    const existingIdx = accounts.findIndex(a => a.email.toLowerCase() === account.email.toLowerCase());
+    if (existingIdx >= 0) {
+      accounts[existingIdx] = { ...accounts[existingIdx], ...account };
+    } else {
+      accounts.push(account);
+    }
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
   };
 
@@ -106,39 +124,77 @@ export function CampusCareLogin({
     onLogin(seedAccount);
   };
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoginError('');
+    setAuthSuccessMsg('');
 
     const emailTrim = loginEmail.trim().toLowerCase();
     const pass = loginPassword.trim();
 
     if (!emailTrim || !pass) {
-      setLoginError('Please enter both email/username and password.');
+      setLoginError('Please enter both email address and password.');
       return;
     }
 
-    const accounts = getSavedAccounts();
-    const found = accounts.find(a => {
-      if (a.email.toLowerCase() !== emailTrim) return false;
-      if (a.password === pass) return true;
-      // Allow standard demo passwords for seed accounts
-      if (['admin', 'admin123', 'tech', 'tech123', 'staff', 'staff123', 'password', '123456', 'campuscare'].includes(pass.toLowerCase())) {
-        return true;
-      }
-      return false;
-    });
+    setIsSubmitting(true);
 
-    if (found) {
-      onLogin(found);
-    } else {
-      setLoginError('Invalid credentials. You can also tap one of the Quick Demo buttons above to sign in with 1-tap.');
+    try {
+      // 1. Try Live Supabase Cloud Authentication if configured
+      if (isSupabaseConfigured()) {
+        const authRes = await signInWithEmailPassword(emailTrim, pass);
+        if (authRes.success && authRes.user) {
+          const authUser = authRes.user;
+          const meta = authUser.user_metadata || {};
+          
+          // Find matching local or remote profile
+          const accounts = getSavedAccounts();
+          const existing = accounts.find(a => a.email.toLowerCase() === emailTrim);
+
+          const loggedInUser = {
+            id: authUser.id,
+            name: meta.full_name || meta.name || existing?.name || emailTrim.split('@')[0],
+            email: emailTrim,
+            role: meta.role || existing?.role || 'school_staff',
+            schoolId: meta.school_id || existing?.schoolId || null,
+            schoolName: meta.school_name || existing?.schoolName || 'Campus Institution',
+            institutionType: meta.institution_type || existing?.institutionType || 'school'
+          };
+
+          saveAccount(loggedInUser);
+          onLogin(loggedInUser);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // 2. Check local accounts store
+      const accounts = getSavedAccounts();
+      const found = accounts.find(a => {
+        if (a.email.toLowerCase() !== emailTrim) return false;
+        if (a.password === pass) return true;
+        if (['admin', 'admin123', 'tech', 'tech123', 'staff', 'staff123', 'password', '123456', 'campuscare'].includes(pass.toLowerCase())) {
+          return true;
+        }
+        return false;
+      });
+
+      if (found) {
+        onLogin(found);
+      } else {
+        setLoginError('Invalid credentials. Please verify your email or password, or select a Quick Demo role.');
+      }
+    } catch (err) {
+      setLoginError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleSignupSubmit = (e) => {
+  const handleSignupSubmit = async (e) => {
     e.preventDefault();
     setLoginError('');
+    setAuthSuccessMsg('');
 
     const emailTrim = signupEmail.trim().toLowerCase();
     if (!fullName.trim() || !emailTrim || !signupPassword) {
@@ -151,63 +207,158 @@ export function CampusCareLogin({
       return;
     }
 
-    const accounts = getSavedAccounts();
-    if (accounts.some(a => a.email.toLowerCase() === emailTrim)) {
-      setLoginError('An account with this email already exists. Please sign in.');
+    setIsSubmitting(true);
+
+    try {
+      let schoolId = null;
+      let newSchool = null;
+
+      if (role === 'school_staff') {
+        schoolId = generateUuid();
+        const code = institutionName.replace(/[^A-Z0-9]/gi, '').substring(0, 4).toUpperCase() || 'SCH';
+        const labId = generateUuid();
+        
+        newSchool = {
+          id: schoolId,
+          name: institutionName.trim(),
+          type: institutionType,
+          code: code,
+          city: city.trim() || 'Tamil Nadu',
+          state: 'Tamil Nadu',
+          contactPerson: fullName.trim(),
+          email: emailTrim,
+          phone: '+91 98765 43210',
+          labsCount: 1,
+          systemsCount: Number(pcCount) || 20,
+          createdBy: emailTrim,
+          labs: [
+            {
+              id: labId,
+              schoolId: schoolId,
+              name: labName.trim() || 'Main Computer Lab',
+              code: 'LAB-01',
+              room: 'Room 101',
+              capacity: Number(pcCount) || 20
+            }
+          ]
+        };
+
+        if (onRegisterSchool) {
+          onRegisterSchool(newSchool, Number(pcCount) || 20);
+        }
+      }
+
+      const newAccount = {
+        id: generateUuid(),
+        name: fullName.trim(),
+        email: emailTrim,
+        password: signupPassword,
+        role: role,
+        schoolId: schoolId,
+        schoolName: role === 'school_staff' ? institutionName.trim() : (role === 'org_admin' ? 'Central AMC Operations' : 'Field Operations'),
+        institutionType: role === 'school_staff' ? institutionType : null
+      };
+
+      // Try Live Supabase Cloud Signup
+      if (isSupabaseConfigured()) {
+        const cloudSignup = await signUpWithEmailPassword(emailTrim, signupPassword, {
+          full_name: fullName.trim(),
+          role: role,
+          school_id: schoolId,
+          school_name: newAccount.schoolName,
+          institution_type: institutionType
+        });
+
+        if (!cloudSignup.success && !cloudSignup.error?.includes('already registered')) {
+          console.warn('Cloud signup notice:', cloudSignup.error);
+        } else if (cloudSignup.requiresEmailVerification) {
+          saveAccount(newAccount);
+          setAuthSuccessMsg(`Account created! A confirmation email was dispatched to ${emailTrim}. You can also sign in right away.`);
+          setIsSubmitting(false);
+          setAuthMode('login');
+          setLoginEmail(emailTrim);
+          return;
+        }
+      }
+
+      saveAccount(newAccount);
+      onLogin(newAccount);
+    } catch (err) {
+      setLoginError(err.message || 'Registration failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // OTP Magic Code request handler
+  const handleRequestOtp = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+    setAuthSuccessMsg('');
+
+    const emailTrim = loginEmail.trim().toLowerCase();
+    if (!emailTrim || !emailTrim.includes('@')) {
+      setLoginError('Please enter a valid email address to receive an authentication code.');
       return;
     }
 
-    let schoolId = null;
-    let newSchool = null;
-
-    if (role === 'school_staff') {
-      schoolId = generateUuid();
-      const code = institutionName.replace(/[^A-Z0-9]/gi, '').substring(0, 4).toUpperCase() || 'SCH';
-      const labId = generateUuid();
-      
-      newSchool = {
-        id: schoolId,
-        name: institutionName.trim(),
-        type: institutionType,
-        code: code,
-        city: city.trim() || 'Tamil Nadu',
-        state: 'Tamil Nadu',
-        contactPerson: fullName.trim(),
-        email: emailTrim,
-        phone: '+91 98765 43210',
-        labsCount: 1,
-        systemsCount: Number(pcCount) || 20,
-        createdBy: emailTrim,
-        labs: [
-          {
-            id: labId,
-            schoolId: schoolId,
-            name: labName.trim() || 'Main Computer Lab',
-            code: 'LAB-01',
-            room: 'Room 101',
-            capacity: Number(pcCount) || 20
-          }
-        ]
-      };
-
-      if (onRegisterSchool) {
-        onRegisterSchool(newSchool, Number(pcCount) || 20);
+    setIsSubmitting(true);
+    try {
+      const res = await sendEmailOtp(emailTrim);
+      if (res.success) {
+        setOtpSent(true);
+        setAuthSuccessMsg(`Authentication code sent to ${emailTrim}! Enter the 6-digit code below.`);
+      } else {
+        setLoginError(res.error || 'Failed to send OTP code. Try signing in with password.');
       }
+    } catch (err) {
+      setLoginError(err.message || 'OTP dispatch failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Verify OTP Code handler
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+
+    const emailTrim = loginEmail.trim().toLowerCase();
+    const token = otpCode.trim();
+
+    if (!token) {
+      setLoginError('Please enter the OTP verification code.');
+      return;
     }
 
-    const newAccount = {
-      id: generateUuid(),
-      name: fullName.trim(),
-      email: emailTrim,
-      password: signupPassword,
-      role: role,
-      schoolId: schoolId,
-      schoolName: role === 'school_staff' ? institutionName.trim() : (role === 'org_admin' ? 'Central AMC Operations' : 'Field Operations'),
-      institutionType: role === 'school_staff' ? institutionType : null
-    };
+    setIsSubmitting(true);
+    try {
+      const res = await verifyEmailOtp(emailTrim, token);
+      if (res.success && res.user) {
+        const accounts = getSavedAccounts();
+        const existing = accounts.find(a => a.email.toLowerCase() === emailTrim);
+        const meta = res.user.user_metadata || {};
 
-    saveAccount(newAccount);
-    onLogin(newAccount);
+        const loggedInUser = {
+          id: res.user.id,
+          name: meta.full_name || existing?.name || emailTrim.split('@')[0],
+          email: emailTrim,
+          role: meta.role || existing?.role || 'school_staff',
+          schoolId: meta.school_id || existing?.schoolId || null,
+          schoolName: meta.school_name || existing?.schoolName || 'Campus Institution',
+          institutionType: meta.institution_type || existing?.institutionType || 'school'
+        };
+
+        saveAccount(loggedInUser);
+        onLogin(loggedInUser);
+      } else {
+        setLoginError(res.error || 'Invalid or expired OTP code.');
+      }
+    } catch (err) {
+      setLoginError(err.message || 'Verification failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -257,7 +408,7 @@ export function CampusCareLogin({
         </button>
       </div>
 
-      {/* Auth Mode Toggle Tabs (Sign In / Register) */}
+      {/* Auth Mode Toggle Tabs (Password Sign In / Email Code OTP / Register) */}
       <div style={{
         marginTop: '20px',
         background: '#f1f5f9',
@@ -268,13 +419,13 @@ export function CampusCareLogin({
       }}>
         <button
           type="button"
-          onClick={() => { setAuthMode('login'); setLoginError(''); }}
+          onClick={() => { setAuthMode('login'); setLoginError(''); setAuthSuccessMsg(''); }}
           style={{
             flex: 1,
             padding: '8px',
             borderRadius: '8px',
             border: 'none',
-            fontSize: '12px',
+            fontSize: '11px',
             fontWeight: '700',
             cursor: 'pointer',
             background: authMode === 'login' ? '#ffffff' : 'transparent',
@@ -282,17 +433,35 @@ export function CampusCareLogin({
             boxShadow: authMode === 'login' ? 'var(--shadow-sm)' : 'none'
           }}
         >
-          Sign In
+          Email Sign In
         </button>
         <button
           type="button"
-          onClick={() => { setAuthMode('signup'); setLoginError(''); }}
+          onClick={() => { setAuthMode('otp'); setLoginError(''); setAuthSuccessMsg(''); }}
           style={{
             flex: 1,
             padding: '8px',
             borderRadius: '8px',
             border: 'none',
-            fontSize: '12px',
+            fontSize: '11px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            background: authMode === 'otp' ? '#ffffff' : 'transparent',
+            color: authMode === 'otp' ? 'var(--navy-900)' : 'var(--text-muted)',
+            boxShadow: authMode === 'otp' ? 'var(--shadow-sm)' : 'none'
+          }}
+        >
+          Email OTP
+        </button>
+        <button
+          type="button"
+          onClick={() => { setAuthMode('signup'); setLoginError(''); setAuthSuccessMsg(''); }}
+          style={{
+            flex: 1,
+            padding: '8px',
+            borderRadius: '8px',
+            border: 'none',
+            fontSize: '11px',
             fontWeight: '700',
             cursor: 'pointer',
             background: authMode === 'signup' ? '#ffffff' : 'transparent',
@@ -383,6 +552,27 @@ export function CampusCareLogin({
         </div>
       )}
 
+      {/* Success Notification Alert */}
+      {authSuccessMsg && (
+        <div style={{
+          marginTop: '12px',
+          padding: '10px 14px',
+          borderRadius: '8px',
+          background: '#ecfdf5',
+          border: '1px solid #10b981',
+          color: '#065f46',
+          fontSize: '11px',
+          fontWeight: 600,
+          lineHeight: '1.4',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <CheckCircle2 size={16} color="#059669" style={{ flexShrink: 0 }} />
+          <span>{authSuccessMsg}</span>
+        </div>
+      )}
+
       {/* Error Message */}
       {loginError && (
         <div style={{
@@ -400,20 +590,20 @@ export function CampusCareLogin({
         </div>
       )}
 
-      {/* SIGN IN FORM */}
+      {/* SIGN IN FORM (Email + Password) */}
       {authMode === 'login' ? (
         <form onSubmit={handleLoginSubmit} style={{ marginTop: '16px' }}>
           <div className="form-group" style={{ marginBottom: '12px' }}>
             <label className="form-label" style={{ fontSize: '11px', fontWeight: 600 }}>
-              Email or Username
+              Email Address
             </label>
             <div style={{ position: 'relative' }}>
               <Mail size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
               <input 
-                type="text"
+                type="email"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="Enter your registered email"
+                placeholder="name@school.edu.in"
                 className="form-input"
                 style={{ paddingLeft: '36px' }}
                 required
@@ -458,19 +648,103 @@ export function CampusCareLogin({
 
           <button 
             type="submit" 
+            disabled={isSubmitting}
             className="btn-primary-navy"
-            style={{ width: '100%', padding: '12px', fontSize: '13px', fontWeight: '700' }}
+            style={{ width: '100%', padding: '12px', fontSize: '13px', fontWeight: '700', opacity: isSubmitting ? 0.7 : 1 }}
           >
-            Sign In to Dashboard
+            {isSubmitting ? 'Authenticating...' : 'Sign In with Email'}
           </button>
 
-          <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '11px', color: 'var(--text-muted)' }}>
-            New school or college?{' '}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '11px', color: 'var(--text-muted)' }}>
             <span 
-              onClick={() => setAuthMode('signup')}
+              onClick={() => { setAuthMode('otp'); setLoginError(''); }}
+              style={{ color: 'var(--blue-600)', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Sign in via Email Code OTP
+            </span>
+            <span 
+              onClick={() => { setAuthMode('signup'); setLoginError(''); }}
+              style={{ color: 'var(--navy-900)', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Register institution
+            </span>
+          </div>
+        </form>
+      ) : authMode === 'otp' ? (
+        /* EMAIL OTP MAGIC CODE FORM */
+        <form onSubmit={otpSent ? handleVerifyOtp : handleRequestOtp} style={{ marginTop: '16px' }}>
+          <div className="form-group" style={{ marginBottom: '12px' }}>
+            <label className="form-label" style={{ fontSize: '11px', fontWeight: 600 }}>
+              Email Address
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Mail size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
+              <input 
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="name@school.edu.in"
+                className="form-input"
+                style={{ paddingLeft: '36px' }}
+                required
+                autoComplete="email"
+              />
+            </div>
+            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              We'll send a secure one-time passcode to this email address.
+            </div>
+          </div>
+
+          {otpSent && (
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label className="form-label" style={{ fontSize: '11px', fontWeight: 600 }}>
+                Enter OTP Verification Code
+              </label>
+              <div style={{ position: 'relative' }}>
+                <KeyRound size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
+                <input 
+                  type="text"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  placeholder="6-digit code"
+                  className="form-input"
+                  style={{ paddingLeft: '36px', letterSpacing: '4px', fontSize: '14px', fontWeight: '700' }}
+                  required
+                />
+              </div>
+            </div>
+          )}
+
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            className="btn-primary-navy"
+            style={{ width: '100%', padding: '12px', fontSize: '13px', fontWeight: '700', opacity: isSubmitting ? 0.7 : 1 }}
+          >
+            {isSubmitting ? 'Verifying...' : otpSent ? 'Confirm Code & Enter' : 'Send One-Time Passcode'}
+          </button>
+
+          {otpSent && (
+            <div style={{ textAlign: 'center', marginTop: '10px' }}>
+              <button
+                type="button"
+                onClick={handleRequestOtp}
+                disabled={isSubmitting}
+                style={{ background: 'none', border: 'none', color: 'var(--blue-600)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Resend Code
+              </button>
+            </div>
+          )}
+
+          <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '11px', color: 'var(--text-muted)' }}>
+            Prefer standard password?{' '}
+            <span 
+              onClick={() => { setAuthMode('login'); setLoginError(''); }}
               style={{ color: 'var(--blue-600)', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
             >
-              Register your institution
+              Password Login
             </span>
           </div>
         </form>
