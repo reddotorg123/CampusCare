@@ -29,16 +29,6 @@ jobs:
           mkdir -p ios/App/App/public
           cp -r dist/* ios/App/App/public/
           cp capacitor.config.json ios/App/App/capacitor.config.json
-          
-          # Ensure config.xml exists
-          if [ ! -f ios/App/App/config.xml ]; then
-            cat << 'EOF' > ios/App/App/config.xml
-<?xml version='1.0' encoding='utf-8'?>
-<widget version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
-  <access origin="*" />
-</widget>
-EOF
-          fi
           echo "✅ iOS assets and configs verified"
 
       - name: Resolve Swift Package Dependencies
@@ -95,7 +85,7 @@ EOF
 
           echo "✅ IPA archive created successfully:"
           du -sh CampusCare.ipa
-          
+
           echo "🔍 Verifying archive structure for Sideloadly:"
           unzip -l CampusCare.ipa | grep -E "Payload/App.app/(Info.plist|App)"
 
