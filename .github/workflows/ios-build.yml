@@ -38,7 +38,7 @@ jobs:
             -scheme App \
             -clonedSourcePackagesDirPath "${{ github.workspace }}/.spm-cache"
 
-      - name: Build iOS App (unsigned, for IPA packaging)
+      - name: Build iOS App (ad-hoc signed for complete Info.plist)
         run: |
           mkdir -p "${{ github.workspace }}/build"
           xcodebuild build \
@@ -48,32 +48,43 @@ jobs:
             -sdk iphoneos \
             -derivedDataPath "${{ github.workspace }}/build/DerivedData" \
             -clonedSourcePackagesDirPath "${{ github.workspace }}/.spm-cache" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGN_IDENTITY="-" \
             CODE_SIGN_STYLE="Manual" \
             DEVELOPMENT_TEAM="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            | tee /tmp/xcodebuild.log | grep -E "error:|warning:|BUILD|Compiling|Linking" || true
-
-      - name: Verify Build Output
-        run: |
-          APP_PATH=$(find "${{ github.workspace }}/build/DerivedData" -name "*.app" -path "*/Products/*" 2>/dev/null | head -1)
-          if [ -z "$APP_PATH" ]; then
-            echo "❌ No .app found. Build output:"
-            cat /tmp/xcodebuild.log | tail -50
-            exit 1
-          fi
-          echo "✅ Found app: $APP_PATH"
-          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
+            | grep -E "error:|BUILD|✅|Compiling" || true
+          echo "✅ Build step done"
 
       - name: Package Payload into Sideloadly-Ready IPA
         run: |
+          # Find the .app in the Release-iphoneos products folder
+          APP_PATH=$(find "${{ github.workspace }}/build/DerivedData/Build/Products/Release-iphoneos" \
+            -maxdepth 1 -name "*.app" 2>/dev/null | head -1)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ No .app found. Full DerivedData contents:"
+            find "${{ github.workspace }}/build/DerivedData" -name "*.app" 2>/dev/null || echo "None"
+            exit 1
+          fi
+
+          echo "✅ Found: $APP_PATH"
+
+          # Verify Info.plist exists
+          if [ ! -f "$APP_PATH/Info.plist" ]; then
+            echo "❌ Info.plist missing! Contents of .app:"
+            ls -la "$APP_PATH/"
+            exit 1
+          fi
+          echo "✅ Info.plist verified"
+
+          # Package into IPA
           mkdir -p "${{ github.workspace }}/build/Payload"
           cp -r "$APP_PATH" "${{ github.workspace }}/build/Payload/"
           cd "${{ github.workspace }}/build"
-          zip -r CampusCare.ipa Payload
+          zip -qr CampusCare.ipa Payload
           echo "✅ IPA ready: $(du -sh CampusCare.ipa)"
 
       - name: Upload CampusCare Sideloadly IPA
