@@ -27,9 +27,10 @@ jobs:
       - name: Sync Capacitor iOS Project
         run: npx cap sync ios
 
-      - name: Build Xcode Archive (Unsigned)
+      - name: Build Xcode Archive (Unsigned for Sideloadly)
         run: |
-          xcodebuild -workspace ios/App/App.xcworkspace \
+          mkdir -p build
+          xcodebuild -project ios/App/App.xcodeproj \
             -scheme App \
             -configuration Release \
             -destination 'generic/platform=iOS' \
@@ -37,6 +38,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
             archive
 
       - name: Package Payload into Sideloadly-Ready IPA
