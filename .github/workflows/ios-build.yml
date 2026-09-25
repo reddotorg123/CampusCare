@@ -31,20 +31,20 @@ jobs:
         run: |
           mkdir -p build
           xcodebuild -project ios/App/App.xcodeproj \
-            -target App \
+            -scheme App \
             -configuration Release \
-            -sdk iphoneos \
-            build \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/App.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            CONFIGURATION_BUILD_DIR=build/Release-iphoneos
+            archive
 
       - name: Package Payload into Sideloadly-Ready IPA
         run: |
           mkdir -p build/Payload
-          cp -r build/Release-iphoneos/App.app build/Payload/
+          cp -r build/App.xcarchive/Products/Applications/App.app build/Payload/
           cd build
           zip -r CampusCare.ipa Payload
           cd ..
