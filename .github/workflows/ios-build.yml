@@ -24,12 +24,14 @@ jobs:
       - name: Build Web App
         run: npm run build
 
-      - name: Sync Capacitor iOS Project
+      - name: Copy Web Assets to iOS (manual sync)
         run: |
-          echo "Node: $(node --version)"
-          echo "Cap CLI: $(./node_modules/.bin/cap --version)"
-          ./node_modules/.bin/cap sync ios
-          echo "✅ cap sync completed"
+          mkdir -p ios/App/App/public
+          cp -r dist/* ios/App/App/public/
+          # Copy capacitor config too
+          cp capacitor.config.json ios/App/App/capacitor.config.json || true
+          echo "✅ Web assets copied:"
+          ls -la ios/App/App/public/
 
       - name: Resolve Swift Package Dependencies
         run: |
