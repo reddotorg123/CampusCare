@@ -24,12 +24,22 @@ jobs:
       - name: Build Web App
         run: npm run build
 
-      - name: Copy Web Assets to iOS (manual sync)
+      - name: Prepare iOS Project & Web Assets
         run: |
           mkdir -p ios/App/App/public
           cp -r dist/* ios/App/App/public/
-          cp capacitor.config.json ios/App/App/capacitor.config.json 2>/dev/null || true
-          echo "✅ Web assets copied"
+          cp capacitor.config.json ios/App/App/capacitor.config.json
+          
+          # Ensure config.xml exists
+          if [ ! -f ios/App/App/config.xml ]; then
+            cat << 'EOF' > ios/App/App/config.xml
+<?xml version='1.0' encoding='utf-8'?>
+<widget version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+  <access origin="*" />
+</widget>
+EOF
+          fi
+          echo "✅ iOS assets and configs verified"
 
       - name: Resolve Swift Package Dependencies
         run: |
@@ -55,31 +65,39 @@ jobs:
             DEVELOPMENT_TEAM="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
             COMPILER_INDEX_STORE_ENABLE=NO
-          echo "✅ Build done"
+          echo "✅ Xcode build succeeded"
 
       - name: Package Payload into Sideloadly-Ready IPA
         run: |
-          # Find the .app (exclude dSYM bundles)
+          # Locate built .app bundle
           APP_PATH=$(find "${{ github.workspace }}/build/DerivedData/Build/Products" \
             -name "*.app" -not -name "*.dSYM" 2>/dev/null | grep -v dSYM | head -1)
 
           if [ -z "$APP_PATH" ]; then
-            echo "❌ No .app found. Contents:"
-            find "${{ github.workspace }}/build/DerivedData" -maxdepth 5 -type d 2>/dev/null | head -30
+            echo "❌ No .app found. Listing DerivedData:"
+            find "${{ github.workspace }}/build/DerivedData" -maxdepth 5 2>/dev/null | head -30
             exit 1
           fi
-          echo "✅ App: $APP_PATH"
+          echo "✅ Found built app: $APP_PATH"
 
-          # Inject pre-resolved Info.plist (replaces template with real values)
+          # Inject resolved Info.plist with MinimumOSVersion 15.0 and bundle details
           cp ios/App/App/Info.resolved.plist "$APP_PATH/Info.plist"
-          echo "✅ Info.plist injected: $(plutil -p "$APP_PATH/Info.plist" | grep CFBundleIdentifier)"
+          echo "✅ Injected Info.plist:"
+          plutil -p "$APP_PATH/Info.plist"
 
-          # Package into IPA (Sideloadly will re-sign)
+          # Prepare Payload structure required by Sideloadly & iOS
+          rm -rf "${{ github.workspace }}/build/Payload"
           mkdir -p "${{ github.workspace }}/build/Payload"
-          cp -r "$APP_PATH" "${{ github.workspace }}/build/Payload/"
+          cp -R "$APP_PATH" "${{ github.workspace }}/build/Payload/"
+
           cd "${{ github.workspace }}/build"
-          zip -qr CampusCare.ipa Payload
-          echo "✅ IPA ready: $(du -sh CampusCare.ipa)"
+          zip -qry CampusCare.ipa Payload
+
+          echo "✅ IPA archive created successfully:"
+          du -sh CampusCare.ipa
+          
+          echo "🔍 Verifying archive structure for Sideloadly:"
+          unzip -l CampusCare.ipa | grep -E "Payload/App.app/(Info.plist|App)"
 
       - name: Upload CampusCare Sideloadly IPA
         uses: actions/upload-artifact@v4
