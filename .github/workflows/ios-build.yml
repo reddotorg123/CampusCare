@@ -19,22 +19,35 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build Web App
         run: npm run build
 
       - name: Sync Capacitor iOS Project
-        run: npx cap sync ios
+        run: |
+          echo "Node: $(node --version)"
+          echo "Cap CLI: $(./node_modules/.bin/cap --version)"
+          ./node_modules/.bin/cap sync ios
+          echo "✅ cap sync completed"
+
+      - name: Resolve Swift Package Dependencies
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -clonedSourcePackagesDirPath "${{ github.workspace }}/.spm-cache"
 
       - name: Build Xcode Archive (Unsigned for Sideloadly)
         run: |
           mkdir -p build
-          xcodebuild -project ios/App/App.xcodeproj \
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
             -scheme App \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath build/App.xcarchive \
+            -archivePath "${{ github.workspace }}/build/App.xcarchive" \
+            -clonedSourcePackagesDirPath "${{ github.workspace }}/.spm-cache" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -43,14 +56,16 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="" \
             COMPILER_INDEX_STORE_ENABLE=NO \
             archive
+          echo "✅ Archive built"
 
       - name: Package Payload into Sideloadly-Ready IPA
         run: |
-          mkdir -p build/Payload
-          cp -r build/App.xcarchive/Products/Applications/App.app build/Payload/
-          cd build
+          mkdir -p "${{ github.workspace }}/build/Payload"
+          cp -r "${{ github.workspace }}/build/App.xcarchive/Products/Applications/App.app" \
+                "${{ github.workspace }}/build/Payload/"
+          cd "${{ github.workspace }}/build"
           zip -r CampusCare.ipa Payload
-          cd ..
+          echo "✅ IPA ready: $(du -sh CampusCare.ipa)"
 
       - name: Upload CampusCare Sideloadly IPA
         uses: actions/upload-artifact@v4
