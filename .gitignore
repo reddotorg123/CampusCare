@@ -23,6 +23,7 @@ build/
 releases/windows/
 releases/android/*.apk
 releases/web/
+READY_TO_USE_APPS/
 
 # Environment Variables & Local Secrets
 .env

@@ -1,4 +1,4 @@
-# CampusCare iOS Build & Sideload Guide (v1.0.0)
+# CampusCare iOS Build & Sideload Guide (v1.0.3)
 
 ## Overview & Architecture
 The CampusCare iOS application is powered by **Capacitor 8** wrapping the latest production React / Vite client.
