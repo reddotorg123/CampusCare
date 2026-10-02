@@ -1,0 +1,54 @@
+name: Build Windows Desktop App
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build Windows Qt 6 Executable
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.0'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2022_64'
+          modules: 'qtquickcontrols2'
+
+      - name: Setup MSVC Compiler
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure CMake
+        run: |
+          cmake -B build-qt -S qt-client -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Desktop Executable
+        run: |
+          cmake --build build-qt --config Release
+
+      - name: Deploy Qt Runtime Dependencies (windeployqt)
+        shell: pwsh
+        run: |
+          $binDir = "build-qt"
+          windeployqt --qmldir qt-client/qml "$binDir/CampusCare.exe"
+          
+          # Create batch launcher
+          Set-Content -Path "$binDir/Run-CampusCare.bat" -Value "@echo off`r`nstart """" ""CampusCare.exe"""
+          
+          # Compress to portable zip
+          Compress-Archive -Path "$binDir/*" -DestinationPath "CampusCare-Windows-Portable.zip"
+
+      - name: Upload Windows Portable Zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CampusCare-Windows-Portable
+          path: CampusCare-Windows-Portable.zip
+          if-no-files-found: warn

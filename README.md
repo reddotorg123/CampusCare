@@ -2,6 +2,10 @@
 > **Enterprise IT Asset, Physical Computer Lab & AMC Management System for Educational Institutions**
 
 [![CampusCare CI](https://github.com/reddotorg123/CampusCare/actions/workflows/ci.yml/badge.svg)](https://github.com/reddotorg123/CampusCare/actions/workflows/ci.yml)
+[![Android Build](https://github.com/reddotorg123/CampusCare/actions/workflows/android-build.yml/badge.svg)](https://github.com/reddotorg123/CampusCare/actions/workflows/android-build.yml)
+[![iOS Build](https://github.com/reddotorg123/CampusCare/actions/workflows/ios-build.yml/badge.svg)](https://github.com/reddotorg123/CampusCare/actions/workflows/ios-build.yml)
+[![Windows Desktop Build](https://github.com/reddotorg123/CampusCare/actions/workflows/windows-build.yml/badge.svg)](https://github.com/reddotorg123/CampusCare/actions/workflows/windows-build.yml)
+[![Developer Guide](https://img.shields.io/badge/Developer-Build_Guide-orange.svg)](DEVELOPER_BUILD_GUIDE.md)
 [![Version](https://img.shields.io/badge/version-1.0.3-blue.svg)](public/version.json)
 [![React](https://img.shields.io/badge/React-19.2-61dafb.svg?logo=react)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8.2-646CFF.svg?logo=vite)](https://vitejs.dev/)
