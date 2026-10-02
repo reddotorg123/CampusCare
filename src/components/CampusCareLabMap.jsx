@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Search, 
@@ -40,7 +40,6 @@ export function CampusCareLabMap({
   onBack
 }) {
   const [activeTab, setActiveTab] = useState('map'); // 'map' | 'systems' | 'details'
-  const [zoomLevel, setZoomLevel] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'working' | 'issue_reported' | 'under_service' | 'offline'
 
@@ -67,16 +66,50 @@ export function CampusCareLabMap({
     setTimeout(() => setToastMessage(null), 2500);
   };
 
-  const handleZoom = (delta) => {
-    setZoomLevel(prev => Math.min(1.4, Math.max(0.7, prev + delta)));
-  };
-
-  const handleResetZoom = () => setZoomLevel(1);
-
   // Filter actual PC workstations safely (exclude layout elements: tables, labels, doors, desks)
   const workstationDevices = useMemo(() => {
     return devices.filter(d => d.type === 'pc' || !d.type);
   }, [devices]);
+
+  // Compute dynamic architectural room boundaries covering all placed computers & furniture
+  const roomBounds = useMemo(() => {
+    let maxX = 360;
+    let maxY = 420;
+    devices.forEach(d => {
+      const w = d.width || (d.type === 'pc' ? 54 : d.type === 'table' ? 110 : 80);
+      const h = d.height || (d.type === 'pc' ? 46 : d.type === 'table' ? 48 : 40);
+      const x = (d.coords?.x || 0) + w;
+      const y = (d.coords?.y || 0) + h;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    });
+    return { width: Math.max(380, maxX + 28), height: Math.max(420, maxY + 36) };
+  }, [devices]);
+
+  // Intelligent auto-zoom system to ensure whole lab is covered cleanly on mobile screens
+  const calculateAutoZoom = () => {
+    const screenW = typeof window !== 'undefined' ? window.innerWidth : 380;
+    const targetW = Math.min(screenW - 56, 350);
+    const scaleX = targetW / roomBounds.width;
+    const scaleY = 400 / roomBounds.height;
+    const fitScale = Math.min(scaleX, scaleY);
+    return Math.min(1.0, Math.max(0.45, Math.round(fitScale * 100) / 100));
+  };
+
+  const [zoomLevel, setZoomLevel] = useState(() => calculateAutoZoom());
+
+  // Automatically recalculate zoom when lab or devices change
+  useEffect(() => {
+    setZoomLevel(calculateAutoZoom());
+  }, [devices.length, activeLab?.id]);
+
+  const handleZoom = (delta) => {
+    setZoomLevel(prev => Math.min(1.6, Math.max(0.4, Math.round((prev + delta) * 10) / 10)));
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(calculateAutoZoom());
+  };
 
   // Real-time calculated KPI counts for this lab
   const workingCount = workstationDevices.filter(d => (d.status || 'working') === 'working').length;
@@ -497,31 +530,94 @@ export function CampusCareLabMap({
       {activeTab === 'map' && (
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: '0 16px 16px 16px' }}>
           {/* Action Row: Edit Map & Workstations count */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          {/* Action Row: Edit Map, Intelligent Zoom Controls & Systems count */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-              {workstationDevices.length} PCs ({workingCount} working, {issueCount} issues)
+              {workstationDevices.length} PCs ({workingCount} ok{issueCount > 0 ? `, ${issueCount} issues` : ''})
             </div>
 
-            <button 
-              onClick={onOpenEditor}
-              style={{
-                display: 'flex',
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {/* Zoom Controls */}
+              <div style={{
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
                 background: '#ffffff',
                 border: '1px solid var(--border-mid)',
                 borderRadius: '6px',
-                padding: '4px 10px',
-                fontSize: '11px',
-                fontWeight: '600',
-                color: 'var(--navy-800)',
-                cursor: 'pointer',
+                padding: '2px',
                 boxShadow: 'var(--shadow-sm)'
-              }}
-            >
-              <Edit3 size={12} />
-              Edit Layout
-            </button>
+              }}>
+                <button
+                  type="button"
+                  onClick={() => handleZoom(-0.1)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '3px 6px',
+                    cursor: 'pointer',
+                    color: 'var(--navy-900)',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  title="Zoom Out"
+                >
+                  <Minus size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetZoom}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '2px 4px',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    color: 'var(--navy-800)',
+                    cursor: 'pointer'
+                  }}
+                  title="Fit All Systems in View"
+                >
+                  {Math.round(zoomLevel * 100)}%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleZoom(0.1)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '3px 6px',
+                    cursor: 'pointer',
+                    color: 'var(--navy-900)',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  title="Zoom In"
+                >
+                  <Plus size={13} />
+                </button>
+              </div>
+
+              <button 
+                onClick={onOpenEditor}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: '#ffffff',
+                  border: '1px solid var(--border-mid)',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  color: 'var(--navy-800)',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+              >
+                <Edit3 size={12} />
+                Edit Layout
+              </button>
+            </div>
           </div>
 
           {/* 2D Canvas Room Box */}
@@ -530,8 +626,8 @@ export function CampusCareLabMap({
             background: '#ffffff',
             border: '2px solid #334155',
             borderRadius: '8px',
-            minHeight: '440px',
-            overflow: 'hidden',
+            minHeight: '430px',
+            overflow: 'auto',
             boxShadow: 'inset 0 0 20px rgba(0,0,0,0.03)'
           }}>
             {/* Architectural Grid & Room Boundary */}
@@ -541,8 +637,8 @@ export function CampusCareLabMap({
                 transformOrigin: 'top left',
                 transition: 'transform 0.15s ease-out',
                 position: 'relative',
-                width: '390px',
-                height: '440px',
+                width: `${roomBounds.width}px`,
+                height: `${roomBounds.height}px`,
                 padding: '10px'
               }}
             >

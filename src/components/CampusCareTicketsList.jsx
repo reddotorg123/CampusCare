@@ -68,7 +68,7 @@ export function CampusCareTicketsList({
           )}
           <div>
             <span className="screen-header-title">
-              {currentUser?.role === 'school_staff' ? 'My School Tickets' : 'Service Tickets'}
+              Tickets
             </span>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
               {currentSchool?.name || currentUser?.schoolName || 'CampusCare'} • {unsolvedTickets.length} Unsolved

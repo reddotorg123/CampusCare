@@ -66,5 +66,16 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>CampusCare needs camera access to capture photos of computer lab hardware issues and equipment.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>CampusCare needs photo library access to upload photos of hardware issues and tickets.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>CampusCare needs permission to save service ticket photos to your library.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

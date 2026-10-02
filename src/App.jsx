@@ -26,7 +26,7 @@ import {
   subscribeToTickets 
 } from './services/dbService';
 
-import { Home, Ticket, School, UserCheck, MoreHorizontal, LogOut, Monitor, PlusCircle, Database, ArrowDownCircle } from 'lucide-react';
+import { Home, Ticket, School, UserCheck, MoreHorizontal, LogOut, Monitor, PlusCircle, ArrowDownCircle } from 'lucide-react';
 import './styles/campuscare.css';
 
 export default function App() {
@@ -74,23 +74,12 @@ export default function App() {
   // Handle manual or automatic OTA Update check
   const handleCheckOta = async () => {
     const info = await checkOtaUpdate();
-    if (info?.updateAvailable) {
+    if (info) {
       setOtaInfo(info);
       setShowOtaModal(true);
-    } else {
-      alert(`CampusCare is up to date! Current version: v${APP_CURRENT_VERSION}`);
     }
   };
 
-  // Check for OTA update on startup
-  useEffect(() => {
-    checkOtaUpdate().then(info => {
-      if (info && info.updateAvailable) {
-        setOtaInfo(info);
-        setShowOtaModal(true);
-      }
-    });
-  }, []);
 
   // Core Business State - Starts Clean!
   // Core Business State - Falls back to INITIAL_SCHOOLS if storage is empty
@@ -498,15 +487,16 @@ export default function App() {
     setCurrentScreen('ticket_details');
   };
 
-  const handleUpdateTicketStatus = (ticketId, nextStatus) => {
+  const handleUpdateTicketStatus = (ticketId, nextStatus, notes = '', extraData = {}) => {
     if (isDbConnected) {
-      updateTicketStatusInDb(ticketId, nextStatus, '', currentUser?.name);
+      updateTicketStatusInDb(ticketId, nextStatus, notes, currentUser?.name);
     }
 
     setTickets(prev => prev.map(t => {
       if (t.id !== ticketId) return t;
       return {
         ...t,
+        ...extraData,
         status: nextStatus,
         timeline: t.timeline?.map(step => {
           if (step.status === nextStatus) return { ...step, done: true, date: 'Just now' };
@@ -518,6 +508,7 @@ export default function App() {
     if (selectedTicket && selectedTicket.id === ticketId) {
       setSelectedTicket(prev => ({
         ...prev,
+        ...extraData,
         status: nextStatus
       }));
     }
@@ -571,18 +562,41 @@ export default function App() {
     }
   };
 
-  const handleToggleChecklistItem = (itemId) => {
-    if (!selectedTicket) return;
-    const updatedChecklist = selectedTicket.checklist?.map(item => {
-      if (item.id === itemId) return { ...item, checked: !item.checked };
-      return item;
-    });
+  const handleToggleChecklistItem = (arg1, arg2) => {
+    const ticketId = arg2 !== undefined ? arg1 : selectedTicket?.id;
+    const itemId = arg2 !== undefined ? arg2 : arg1;
+    if (!ticketId) return;
 
-    setSelectedTicket(prev => ({ ...prev, checklist: updatedChecklist }));
+    const defaultItems = [
+      { id: 1, text: 'Check wall power socket and surge protector supply', checked: false },
+      { id: 2, text: 'Verify HDMI/VGA cable connection firmly seated', checked: false },
+      { id: 3, text: 'Swap with known-good monitor from adjacent bench', checked: false },
+      { id: 4, text: 'Inspect motherboard diagnostic beeps & LED indicators', checked: false },
+      { id: 5, text: 'Re-seat RAM stick and clear CMOS if required', checked: false },
+      { id: 6, text: 'Boot system and verify Windows desktop resolution', checked: false }
+    ];
+
     setTickets(prev => prev.map(t => {
-      if (t.id === selectedTicket.id) return { ...t, checklist: updatedChecklist };
+      if (t.id === ticketId) {
+        const currentList = t.checklist && t.checklist.length > 0 ? t.checklist : defaultItems;
+        const updatedChecklist = currentList.map(item => {
+          if (item.id === itemId) return { ...item, checked: !item.checked };
+          return item;
+        });
+        return { ...t, checklist: updatedChecklist };
+      }
       return t;
     }));
+
+    setSelectedTicket(prev => {
+      if (!prev || prev.id !== ticketId) return prev;
+      const currentList = prev.checklist && prev.checklist.length > 0 ? prev.checklist : defaultItems;
+      const updatedChecklist = currentList.map(item => {
+        if (item.id === itemId) return { ...item, checked: !item.checked };
+        return item;
+      });
+      return { ...prev, checklist: updatedChecklist };
+    });
   };
 
   const handleSendChatMessage = (text) => {
@@ -732,17 +746,27 @@ export default function App() {
             isDbConnected={isDbConnected}
             onOpenDbConfig={() => setShowDbModal(true)}
             onNavigateTo={(screen) => {
-              setCurrentScreen(screen);
-              if (screen === 'tickets') setActiveBottomNav('tickets');
-              if (screen === 'schools') setActiveBottomNav('schools');
-              if (screen === 'lab_map') setActiveBottomNav('lab_map');
-              if (screen === 'create_ticket') setActiveBottomNav('create_ticket');
-              if (screen === 'engineers') setActiveBottomNav('engineers');
+              if (screen === 'engineers' || screen === 'field_jobs' || screen === 'technician_job') {
+                setCurrentScreen('technician_job');
+                setActiveBottomNav('engineers');
+              } else {
+                setCurrentScreen(screen);
+                if (screen === 'tickets') setActiveBottomNav('tickets');
+                if (screen === 'schools') setActiveBottomNav('schools');
+                if (screen === 'lab_map') setActiveBottomNav('lab_map');
+                if (screen === 'create_ticket') setActiveBottomNav('create_ticket');
+              }
             }}
             onQuickAction={(action) => {
               if (action === 'add_school') setCurrentScreen('schools');
-              else if (action === 'assign_ticket') setCurrentScreen('technician_job');
-              else if (action === 'reports') setCurrentScreen('tickets');
+              else if (action === 'assign_ticket' || action === 'field_jobs') {
+                setCurrentScreen('technician_job');
+                setActiveBottomNav('engineers');
+              }
+              else if (action === 'reports') {
+                setCurrentScreen('tickets');
+                setActiveBottomNav('tickets');
+              }
             }}
           />
         )}
@@ -823,6 +847,7 @@ export default function App() {
         {currentScreen === 'ticket_details' && (
           <CampusCareTicketDetails 
             ticket={selectedTicket}
+            currentUser={currentUser}
             onAssign={() => setCurrentScreen('technician_job')}
             onUpdateStatus={() => setCurrentScreen('technician_job')}
             onCloseTicket={() => handleUpdateTicketStatus(selectedTicket.id, 'closed')}
@@ -931,7 +956,7 @@ export default function App() {
               {openTicketsCount > 0 && (
                 <span className="bottom-nav-badge">{openTicketsCount}</span>
               )}
-              <span>{currentUser?.role === 'school_staff' ? 'My Tickets' : 'Tickets'}</span>
+              <span>Tickets</span>
             </button>
 
             {/* 5. More / Account Tab */}
@@ -993,40 +1018,6 @@ export default function App() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px 0' }}>
-                {/* Database & Cloud Sync Settings Button */}
-                <button
-                  onClick={() => { setShowMoreSheet(false); setShowDbModal(true); }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 14px',
-                    borderRadius: '12px',
-                    border: '1px solid #e2e8f0',
-                    background: '#f8fafc',
-                    color: '#0f172a',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Database size={18} color="#00bceb" />
-                    <span>Database & Cloud Sync</span>
-                  </div>
-                  <span style={{
-                    fontSize: '10px',
-                    padding: '2px 8px',
-                    borderRadius: '10px',
-                    background: isDbConnected ? '#ecfdf5' : '#fffbeb',
-                    color: isDbConnected ? '#047857' : '#b45309',
-                    border: isDbConnected ? '1px solid #a7f3d0' : '1px solid #fde68a',
-                    fontWeight: 700
-                  }}>
-                    {isDbConnected ? '🟢 Live Supabase' : '🟡 Local Mode'}
-                  </span>
-                </button>
-
                 {/* Over-The-Air (OTA) Updates Button */}
                 <button
                   onClick={async () => {

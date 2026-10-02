@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowDownCircle, Sparkles, X, CheckCircle, RefreshCw } from 'lucide-react';
+import { ArrowDownCircle, Sparkles, X, CheckCircle2, RefreshCw, ExternalLink } from 'lucide-react';
 import { applyOtaUpdate } from '../services/otaService';
 
 export function OtaUpdateModal({ otaInfo, onClose }) {
@@ -11,6 +11,8 @@ export function OtaUpdateModal({ otaInfo, onClose }) {
     setIsUpdating(true);
     await applyOtaUpdate(otaInfo);
   };
+
+  const isUpToDate = !otaInfo.updateAvailable;
 
   return (
     <div 
@@ -42,7 +44,9 @@ export function OtaUpdateModal({ otaInfo, onClose }) {
       >
         {/* Header Ribbon */}
         <div style={{
-          background: 'linear-gradient(135deg, #0f2942 0%, #1e4e79 100%)',
+          background: isUpToDate 
+            ? 'linear-gradient(135deg, #065f46 0%, #047857 100%)'
+            : 'linear-gradient(135deg, #0f2942 0%, #1e4e79 100%)',
           padding: '20px 20px 16px 20px',
           color: '#ffffff',
           position: 'relative'
@@ -79,14 +83,20 @@ export function OtaUpdateModal({ otaInfo, onClose }) {
             justifyContent: 'center',
             marginBottom: '10px'
           }}>
-            <ArrowDownCircle size={24} color="#60a5fa" />
+            {isUpToDate ? (
+              <CheckCircle2 size={24} color="#a7f3d0" />
+            ) : (
+              <ArrowDownCircle size={24} color="#60a5fa" />
+            )}
           </div>
 
           <div style={{ fontSize: '17px', fontWeight: '800', letterSpacing: '-0.01em' }}>
-            New Update Available
+            {isUpToDate ? "You're Running the Latest Version" : 'New Update Available'}
           </div>
-          <div style={{ fontSize: '11px', color: '#93c5fd', marginTop: '2px' }}>
-            CampusCare v{otaInfo.latestVersion} is ready to install
+          <div style={{ fontSize: '11px', color: isUpToDate ? '#d1fae5' : '#93c5fd', marginTop: '2px' }}>
+            {isUpToDate 
+              ? `CampusCare v${otaInfo.currentVersion} (Build ${otaInfo.buildNumber || 4}) is up to date` 
+              : `CampusCare v${otaInfo.latestVersion} is ready to install`}
           </div>
         </div>
 
@@ -103,18 +113,22 @@ export function OtaUpdateModal({ otaInfo, onClose }) {
             marginBottom: '14px'
           }}>
             <div>
-              <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: '700' }}>Current Version</div>
+              <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: '700' }}>Installed Version</div>
               <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>v{otaInfo.currentVersion}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '10px', color: '#2563eb', textTransform: 'uppercase', fontWeight: '700' }}>New Version</div>
-              <div style={{ fontSize: '13px', fontWeight: '800', color: '#1d4ed8' }}>v{otaInfo.latestVersion}</div>
+              <div style={{ fontSize: '10px', color: isUpToDate ? '#059669' : '#2563eb', textTransform: 'uppercase', fontWeight: '700' }}>
+                {isUpToDate ? 'System Status' : 'Latest Release'}
+              </div>
+              <div style={{ fontSize: '13px', fontWeight: '800', color: isUpToDate ? '#059669' : '#1d4ed8' }}>
+                {isUpToDate ? '✓ Latest' : `v${otaInfo.latestVersion}`}
+              </div>
             </div>
           </div>
 
           <div style={{ marginBottom: '18px' }}>
             <div style={{ fontSize: '12px', fontWeight: '700', color: '#0f172a', marginBottom: '6px' }}>
-              What's New:
+              {isUpToDate ? 'Active Features & Optimizations:' : "What's New in this Version:"}
             </div>
             <div style={{
               fontSize: '11.5px',
@@ -124,59 +138,85 @@ export function OtaUpdateModal({ otaInfo, onClose }) {
               padding: '10px 12px',
               borderRadius: '8px'
             }}>
-              {otaInfo.changelog || 'Performance improvements, live cloud synchronization, and fixes.'}
+              {otaInfo.changelog || 'Google Login, interactive checklists, real-time lab system counts, and cloud sync.'}
             </div>
           </div>
 
           {/* Action Buttons */}
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={onClose}
-              style={{
-                flex: 1,
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                background: '#ffffff',
-                color: '#475569',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-            >
-              Later
-            </button>
-            <button
-              onClick={handleUpdate}
-              disabled={isUpdating}
-              style={{
-                flex: 2,
-                padding: '12px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'var(--blue-600, #2563eb)',
-                color: '#ffffff',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: isUpdating ? 'wait' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}
-            >
-              {isUpdating ? (
-                <>
-                  <RefreshCw size={15} className="spin-animation" />
-                  <span>Updating...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={15} />
-                  <span>Update Now</span>
-                </>
-              )}
-            </button>
+            {isUpToDate ? (
+              <button
+                onClick={onClose}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#059669',
+                  color: '#ffffff',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <CheckCircle2 size={16} />
+                <span>All Good / Close</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={onClose}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#475569',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Later
+                </button>
+                <button
+                  onClick={handleUpdate}
+                  disabled={isUpdating}
+                  style={{
+                    flex: 2,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'var(--blue-600, #2563eb)',
+                    color: '#ffffff',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: isUpdating ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {isUpdating ? (
+                    <>
+                      <RefreshCw size={15} className="spin-animation" />
+                      <span>Updating...</span>
+                    </>
+                  ) : (
+                    <>
+                      {otaInfo.isNative ? <ExternalLink size={15} /> : <Sparkles size={15} />}
+                      <span>{otaInfo.isNative ? 'Download & Install' : 'Update Now'}</span>
+                    </>
+                  )}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

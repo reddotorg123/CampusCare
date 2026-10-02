@@ -9,7 +9,13 @@ import {
   Check, 
   DoorOpen, 
   Armchair,
-  Edit3
+  Edit3,
+  Eye,
+  Move,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 
 export function CampusCareLabEditor({ 
@@ -90,7 +96,35 @@ export function CampusCareLabEditor({
   const [draggedId, setDraggedId] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [saveNotification, setSaveNotification] = useState(false);
+  const [editorViewMode, setEditorViewMode] = useState('edit'); // 'edit' | 'preview'
   const canvasRef = useRef(null);
+
+  // Quick move selected element across to another side or wall (mobile enhancement)
+  const handleMoveSelected = (direction) => {
+    if (!selectedId) return;
+    const canvasEl = canvasRef.current;
+    const canvasWidth = canvasEl?.clientWidth || 360;
+    const canvasHeight = canvasEl?.clientHeight || 450;
+    const item = labElements.find(d => d.id === selectedId);
+    if (!item) return;
+
+    const itemW = item.width || 54;
+    const itemH = item.height || 46;
+    let curX = item.coords?.x || 30;
+    let curY = item.coords?.y || 40;
+
+    if (direction === 'left_wall') curX = 8;
+    else if (direction === 'right_wall') curX = Math.max(8, canvasWidth - itemW - 12);
+    else if (direction === 'top_wall') curY = 12;
+    else if (direction === 'bottom_wall') curY = Math.max(12, canvasHeight - itemH - 16);
+    else if (direction === 'center') curX = Math.round((canvasWidth - itemW) / 2);
+    else if (direction === 'nudge_left') curX = Math.max(4, curX - 24);
+    else if (direction === 'nudge_right') curX = Math.min(canvasWidth - itemW - 4, curX + 24);
+    else if (direction === 'nudge_up') curY = Math.max(4, curY - 24);
+    else if (direction === 'nudge_down') curY = Math.min(canvasHeight - itemH - 4, curY + 24);
+
+    setLabElements(prev => prev.map(d => d.id === selectedId ? { ...d, coords: { x: curX, y: curY } } : d));
+  };
 
   const selectedElement = labElements.find(d => d.id === selectedId);
 
@@ -308,22 +342,46 @@ export function CampusCareLabEditor({
             </div>
           </div>
         </div>
-        <button 
-          onClick={handleSave}
-          style={{
-            background: 'var(--navy-800)',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '6px',
-            padding: '6px 16px',
-            fontSize: '12px',
-            fontWeight: '700',
-            cursor: 'pointer',
-            boxShadow: 'var(--shadow-sm)'
-          }}
-        >
-          Save Layout
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Toggle View Mode Button */}
+          <button 
+            onClick={() => setEditorViewMode(prev => prev === 'edit' ? 'preview' : 'edit')}
+            style={{
+              background: editorViewMode === 'preview' ? 'var(--blue-50)' : '#ffffff',
+              color: editorViewMode === 'preview' ? 'var(--blue-600)' : 'var(--navy-900)',
+              border: editorViewMode === 'preview' ? '1px solid var(--blue-600)' : '1px solid var(--border-mid)',
+              borderRadius: '6px',
+              padding: '6px 10px',
+              fontSize: '11px',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              cursor: 'pointer'
+            }}
+            title="Toggle between Edit and Preview mode"
+          >
+            <Eye size={13} />
+            <span>{editorViewMode === 'preview' ? 'Edit Mode' : 'Preview'}</span>
+          </button>
+
+          <button 
+            onClick={handleSave}
+            style={{
+              background: 'var(--navy-800)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+          >
+            Save
+          </button>
+        </div>
       </div>
 
       {/* Save Toast Notification */}
@@ -367,156 +425,213 @@ export function CampusCareLabEditor({
         <span>Select any element to drag or rename. Entrance & Teacher's Desk can now be placed anywhere.</span>
       </div>
 
-      {/* Workspace Area: Left Toolbar + Canvas */}
-      <div style={{ padding: '0 16px 12px 16px', display: 'flex', gap: '10px', flex: 1 }}>
-        {/* Left Elements Palette */}
+      {/* Responsive Horizontal Tool Palette for Mobile Phones */}
+      {editorViewMode === 'edit' && (
+        <div style={{ padding: '0 16px 8px 16px' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            overflowX: 'auto',
+            padding: '4px 0',
+            scrollbarWidth: 'none'
+          }}>
+            <button
+              onClick={handleAddPC}
+              style={{
+                background: '#ffffff',
+                border: '1px solid var(--border-mid)',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: '700',
+                color: 'var(--navy-900)',
+                boxShadow: 'var(--shadow-sm)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Monitor size={14} color="var(--navy-800)" />
+              <span>+ PC</span>
+            </button>
+
+            <button
+              onClick={handleAddTable}
+              style={{
+                background: '#ffffff',
+                border: '1px solid var(--border-mid)',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: '700',
+                color: 'var(--text-main)',
+                boxShadow: 'var(--shadow-sm)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Table2 size={14} color="#d97706" />
+              <span>+ Table</span>
+            </button>
+
+            <button
+              onClick={handleAddLabel}
+              style={{
+                background: '#ffffff',
+                border: '1px solid var(--border-mid)',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: '700',
+                color: 'var(--text-main)',
+                boxShadow: 'var(--shadow-sm)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Tag size={14} color="#2563eb" />
+              <span>+ Label</span>
+            </button>
+
+            <button
+              onClick={handleAddTeacherDesk}
+              style={{
+                background: '#ffffff',
+                border: '1px solid var(--border-mid)',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: '700',
+                color: 'var(--text-main)',
+                boxShadow: 'var(--shadow-sm)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Armchair size={14} color="#475569" />
+              <span>+ Desk</span>
+            </button>
+
+            <button
+              onClick={handleAddEntrance}
+              style={{
+                background: '#ffffff',
+                border: '1px solid var(--border-mid)',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: '700',
+                color: 'var(--text-main)',
+                boxShadow: 'var(--shadow-sm)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <DoorOpen size={14} color="#059669" />
+              <span>+ Door</span>
+            </button>
+
+            {selectedId && (
+              <button
+                onClick={handleRemoveSelected}
+                style={{
+                  background: '#fee2e2',
+                  border: '1px solid #ef4444',
+                  borderRadius: '8px',
+                  padding: '6px 10px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  color: '#dc2626',
+                  boxShadow: 'var(--shadow-sm)',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Trash2 size={13} />
+                <span>Remove</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Selected Element Quick Shift / Position Controls */}
+      {selectedId && editorViewMode === 'edit' && (
         <div style={{
+          margin: '0 16px 8px 16px',
+          padding: '8px 12px',
+          background: '#ffffff',
+          borderRadius: '10px',
+          border: '1px solid #3b82f6',
+          boxShadow: 'var(--shadow-sm)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '6px',
-          width: '74px',
-          flexShrink: 0
+          gap: '6px'
         }}>
-          {/* Add PC */}
-          <button
-            onClick={handleAddPC}
-            style={{
-              background: '#ffffff',
-              border: '1px solid var(--border-mid)',
-              borderRadius: '8px',
-              padding: '8px 2px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '3px',
-              cursor: 'pointer',
-              fontSize: '10px',
-              fontWeight: '600',
-              color: 'var(--text-main)',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
-            <Monitor size={17} color="var(--navy-800)" />
-            <span>+ PC</span>
-          </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--navy-900)' }}>
+              Selected: <span style={{ color: '#2563eb' }}>{selectedElement?.name || selectedElement?.code}</span>
+            </span>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+              Move / Shift to Other Side:
+            </span>
+          </div>
 
-          {/* Add Table */}
-          <button
-            onClick={handleAddTable}
-            style={{
-              background: '#ffffff',
-              border: '1px solid var(--border-mid)',
-              borderRadius: '8px',
-              padding: '8px 2px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '3px',
-              cursor: 'pointer',
-              fontSize: '10px',
-              fontWeight: '600',
-              color: 'var(--text-main)',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
-            <Table2 size={17} color="#d97706" />
-            <span>+ Table</span>
-          </button>
-
-          {/* Add Label / Aisle */}
-          <button
-            onClick={handleAddLabel}
-            style={{
-              background: '#ffffff',
-              border: '1px solid var(--border-mid)',
-              borderRadius: '8px',
-              padding: '8px 2px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '3px',
-              cursor: 'pointer',
-              fontSize: '10px',
-              fontWeight: '600',
-              color: 'var(--text-main)',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
-            <Tag size={17} color="#2563eb" />
-            <span>+ Label</span>
-          </button>
-
-          {/* Teacher Desk */}
-          <button
-            onClick={handleAddTeacherDesk}
-            style={{
-              background: '#ffffff',
-              border: '1px solid var(--border-mid)',
-              borderRadius: '8px',
-              padding: '8px 2px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '3px',
-              cursor: 'pointer',
-              fontSize: '10px',
-              fontWeight: '600',
-              color: 'var(--text-main)',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
-            <Armchair size={17} color="#475569" />
-            <span>+ Desk</span>
-          </button>
-
-          {/* Entrance Door */}
-          <button
-            onClick={handleAddEntrance}
-            style={{
-              background: '#ffffff',
-              border: '1px solid var(--border-mid)',
-              borderRadius: '8px',
-              padding: '8px 2px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '3px',
-              cursor: 'pointer',
-              fontSize: '10px',
-              fontWeight: '600',
-              color: 'var(--text-main)',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
-            <DoorOpen size={17} color="#059669" />
-            <span>+ Door</span>
-          </button>
-
-          {/* Delete Item */}
-          <button
-            onClick={handleRemoveSelected}
-            disabled={!selectedId}
-            style={{
-              marginTop: '4px',
-              background: selectedId ? '#fee2e2' : '#f8fafc',
-              border: selectedId ? '1px solid #ef4444' : '1px solid var(--border-light)',
-              borderRadius: '8px',
-              padding: '8px 2px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '3px',
-              cursor: selectedId ? 'pointer' : 'not-allowed',
-              fontSize: '10px',
-              fontWeight: '600',
-              color: selectedId ? '#dc2626' : 'var(--text-light)',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
-            <Trash2 size={16} />
-            <span>Remove</span>
-          </button>
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => handleMoveSelected('left_wall')}
+              style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
+            >
+              ◀ Left Wall
+            </button>
+            <button
+              onClick={() => handleMoveSelected('right_wall')}
+              style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
+            >
+              Right Wall ▶
+            </button>
+            <button
+              onClick={() => handleMoveSelected('top_wall')}
+              style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
+            >
+              ▲ Top Wall
+            </button>
+            <button
+              onClick={() => handleMoveSelected('bottom_wall')}
+              style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
+            >
+              ▼ Bottom Wall
+            </button>
+            <button
+              onClick={() => handleMoveSelected('center')}
+              style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
+            >
+              Center
+            </button>
+          </div>
         </div>
+      )}
+
+      {/* Workspace Area: Full Width Canvas */}
+      <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
 
         {/* 2D Interactive Canvas */}
         <div 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Menu, Bell, PlusCircle, Ticket, MapPin, FileText, ChevronRight, CheckCircle2, Shield, Wrench, School, Database } from 'lucide-react';
 
 export function CampusCareDashboard({ 
@@ -21,8 +21,26 @@ export function CampusCareDashboard({
   // Real-time calculated KPI metrics
   const unsolvedTickets = schoolTickets.filter(t => t.status !== 'resolved' && t.status !== 'closed');
   const inProgressCount = schoolTickets.filter(t => t.status === 'in_progress').length;
-  const pendingCount = schoolTickets.filter(t => t.status === 'open' || t.status === 'created' || !t.assignedTo || t.assignedTo === 'Unassigned').length;
-  const totalAssets = currentSchool?.systemsCount ?? labDevices.filter(d => d.type === 'pc').length;
+  const pendingCount = schoolTickets.filter(t => 
+    t.status !== 'resolved' && 
+    t.status !== 'closed' && 
+    (t.status === 'open' || t.status === 'created' || t.status === 'pending' || !t.assignedTo || t.assignedTo === 'Unassigned' || t.assignedTo === 'In Waiting')
+  ).length;
+
+  const totalAssets = useMemo(() => {
+    if (schoolLabs && schoolLabs.length > 0) {
+      const sumCap = schoolLabs.reduce((sum, l) => sum + (Number(l.capacity) || 0), 0);
+      if (sumCap > 0) return sumCap;
+    }
+    if (currentSchool?.labs && currentSchool.labs.length > 0) {
+      const sumCap = currentSchool.labs.reduce((sum, l) => sum + (Number(l.capacity) || 0), 0);
+      if (sumCap > 0) return sumCap;
+    }
+    const pcCount = labDevices ? labDevices.filter(d => d.type === 'pc' || !d.type).length : 0;
+    if (pcCount > 0) return pcCount;
+    return Number(currentSchool?.systemsCount) || 20;
+  }, [schoolLabs, currentSchool, labDevices]);
+
   const totalLabsCount = (schoolLabs && schoolLabs.length > 0) ? schoolLabs.length : (currentSchool?.labs?.length || 0);
 
   const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
@@ -46,6 +64,8 @@ export function CampusCareDashboard({
             <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: '1.2' }}>
               {currentUser?.role === 'school_staff' 
                 ? `${totalLabsCount} Computer ${totalLabsCount === 1 ? 'Lab' : 'Labs'} • IT Portal` 
+                : currentUser?.role === 'technician'
+                ? 'Support Engineers'
                 : 'Central AMC Support'}
             </div>
           </div>
@@ -339,7 +359,7 @@ export function CampusCareDashboard({
                 <Ticket size={20} color="#d97706" />
               </div>
               <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--navy-900)', textAlign: 'center' }}>
-                {currentUser?.role === 'technician' ? 'All Tickets' : 'My Tickets'}
+                {currentUser?.role === 'technician' ? 'All Tickets' : 'Tickets'}
               </span>
             </button>
           </div>

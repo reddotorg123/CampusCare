@@ -1,12 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Read from localStorage (user configured in app) or Vite env variables
+// Default live Supabase project endpoints for CampusCare
+const DEFAULT_SUPABASE_URL = 'https://uxujdjyuhduthyhkcqfa.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_hZiNDCOhBDMm1EnjAC61dQ_3ek8W6Y8';
+
+// Read from localStorage (user configured in app) or Vite env variables, or live default
 const getStoredUrl = () => {
-  return localStorage.getItem('campuscare_supabase_url') || import.meta.env.VITE_SUPABASE_URL || '';
+  return localStorage.getItem('campuscare_supabase_url') || import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
 };
 
 const getStoredKey = () => {
-  return localStorage.getItem('campuscare_supabase_key') || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  return localStorage.getItem('campuscare_supabase_key') || import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY;
 };
 
 let supabaseInstance = null;
@@ -214,15 +218,28 @@ export const signOutUser = async () => {
   }
 };
 
-export const getCurrentAuthUser = async () => {
+export const signInWithGoogle = async () => {
   const supabase = getSupabaseClient();
-  if (!supabase) return null;
+  if (!supabase) {
+    return { success: false, error: 'Database backend not configured.' };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
-  } catch {
-    return null;
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Google sign-in initialization failed.' };
   }
 };
+
 

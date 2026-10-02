@@ -82,7 +82,7 @@ Rectangle {
 
                         Text {
                             Layout.alignment: Qt.AlignHCenter
-                            text: "IT Asset, AMC & Physical Lab Management"
+                            text: "IT Support & AMC Management"
                             font.pixelSize: 12
                             color: "#64748B"
                         }

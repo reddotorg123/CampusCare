@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowLeft, MoreVertical, Phone, Clock, Paperclip, ChevronRight, X, ZoomIn } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Phone, Clock, Paperclip, ChevronRight, X, ZoomIn, CheckCircle2 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 export function CampusCareTicketDetails({ 
   ticket,
+  currentUser,
   onAssign,
   onUpdateStatus,
   onCloseTicket,
@@ -10,6 +12,7 @@ export function CampusCareTicketDetails({
   onBack 
 }) {
   const [lightboxImage, setLightboxImage] = useState(null);
+  const [isClosed, setIsClosed] = useState(ticket?.status === 'closed');
 
   const t = ticket || {
     ticketNumber: 'N/A',
@@ -33,6 +36,28 @@ export function CampusCareTicketDetails({
       window.location.href = `tel:${t.reporterPhone}`;
     }
   };
+
+  const handleCloseClick = () => {
+    try {
+      confetti({
+        particleCount: 80,
+        spread: 60,
+        origin: { y: 0.7 }
+      });
+    } catch {}
+    setIsClosed(true);
+    if (onCloseTicket) onCloseTicket();
+  };
+
+  const isAssigned = Boolean(
+    t.assignedTo && 
+    t.assignedTo !== 'Unassigned' && 
+    t.assignedTo !== 'In Waiting' && 
+    t.status !== 'open' && 
+    t.status !== 'created'
+  );
+  const assignedDisplay = isAssigned ? (t.assignedTo || t.technician) : 'In Waiting';
+  const isSchoolStaff = currentUser?.role === 'school_staff';
 
   return (
     <div className="screen-scroll-container no-bottom-nav">
@@ -70,15 +95,15 @@ export function CampusCareTicketDetails({
               <span style={{ 
                 fontSize: '11px', 
                 fontWeight: '700', 
-                color: t.status === 'resolved' ? 'var(--status-working)' : 'var(--status-issue)', 
-                background: t.status === 'resolved' ? 'var(--status-working-bg)' : 'var(--status-issue-bg)',
+                color: (t.status === 'resolved' || isClosed) ? 'var(--status-working)' : 'var(--status-issue)', 
+                background: (t.status === 'resolved' || isClosed) ? 'var(--status-working-bg)' : 'var(--status-issue-bg)',
                 padding: '2px 8px',
                 borderRadius: '10px',
                 border: '1px solid rgba(239, 68, 68, 0.2)'
               }}>
-                {t.status === 'in_progress' ? 'In Progress' :
-                 t.status === 'resolved' ? 'Resolved' :
-                 t.status === 'closed' ? 'Closed' : 'Active / Unsolved'}
+                {isClosed || t.status === 'closed' ? 'Closed' :
+                 t.status === 'in_progress' ? 'In Progress' :
+                 t.status === 'resolved' ? 'Resolved' : 'Active / Unsolved'}
               </span>
             </div>
             <span style={{ fontSize: '10px', color: 'var(--text-light)', fontWeight: '600' }}>
@@ -155,7 +180,11 @@ export function CampusCareTicketDetails({
                 </button>
               )
             },
-            { label: 'Assigned To', value: t.assignedTo || t.technician || 'Unassigned' },
+            { 
+              label: 'Assigned To', 
+              value: assignedDisplay,
+              isWaiting: !isAssigned
+            },
             { label: 'Priority', value: (t.priority || 'Medium').toUpperCase() },
             { label: 'Category', value: t.category || 'General' },
             { label: 'Description', value: t.description || 'None' }
@@ -174,9 +203,23 @@ export function CampusCareTicketDetails({
             >
               <span style={{ color: 'var(--text-muted)', fontWeight: '500' }}>{row.label}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ color: 'var(--text-main)', fontWeight: '600', textAlign: 'right' }}>
-                  {row.value}
-                </span>
+                {row.isWaiting ? (
+                  <span style={{ 
+                    fontSize: '11px', 
+                    fontWeight: 700, 
+                    color: '#b45309', 
+                    background: '#fffbeb', 
+                    padding: '2px 8px', 
+                    borderRadius: '12px',
+                    border: '1px solid #fde68a'
+                  }}>
+                    ⏳ In Waiting
+                  </span>
+                ) : (
+                  <span style={{ color: 'var(--text-main)', fontWeight: '600', textAlign: 'right' }}>
+                    {row.value}
+                  </span>
+                )}
                 {row.action}
               </div>
             </div>
@@ -263,29 +306,72 @@ export function CampusCareTicketDetails({
           )}
         </div>
 
-        {/* Action Buttons: [ Assign ] [ Update ] [ Close ] */}
+        {/* Action Buttons: Strict Role Permissions */}
         <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-          <button 
-            onClick={onAssign}
-            className="btn-primary-navy"
-            style={{ flex: 1, padding: '10px' }}
-          >
-            Assign Tech
-          </button>
-          <button 
-            onClick={onUpdateStatus}
-            className="btn-primary-navy"
-            style={{ flex: 1, padding: '10px' }}
-          >
-            Work Order
-          </button>
-          <button 
-            onClick={onCloseTicket}
-            className="btn-primary-navy"
-            style={{ flex: 1, padding: '10px', background: 'var(--navy-900)' }}
-          >
-            Close Ticket
-          </button>
+          {isSchoolStaff ? (
+            /* School Staff: Only Close Ticket button is visible. NO Assign Tech or Work Order! */
+            <button 
+              onClick={handleCloseClick}
+              disabled={isClosed}
+              className="btn-primary-navy"
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: isClosed ? '#10b981' : 'var(--navy-900)',
+                color: '#ffffff',
+                border: isClosed ? '1px solid #059669' : 'none',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: isClosed ? 'default' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: isClosed ? '0 2px 6px rgba(16, 185, 129, 0.3)' : 'var(--shadow-sm)',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              {isClosed ? (
+                <>
+                  <CheckCircle2 size={16} />
+                  <span>✓ Ticket Closed</span>
+                </>
+              ) : (
+                <span>Close Ticket</span>
+              )}
+            </button>
+          ) : (
+            /* Technician / Central Admin View */
+            <>
+              <button 
+                onClick={onAssign}
+                className="btn-primary-navy"
+                style={{ flex: 1, padding: '10px' }}
+              >
+                Assign Tech
+              </button>
+              <button 
+                onClick={onUpdateStatus}
+                className="btn-primary-navy"
+                style={{ flex: 1, padding: '10px' }}
+              >
+                Work Order
+              </button>
+              <button 
+                onClick={handleCloseClick}
+                disabled={isClosed}
+                className="btn-primary-navy"
+                style={{ 
+                  flex: 1, 
+                  padding: '10px', 
+                  background: isClosed ? '#10b981' : 'var(--navy-900)' 
+                }}
+              >
+                {isClosed ? 'Closed' : 'Close Ticket'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

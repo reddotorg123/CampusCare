@@ -1,31 +1,66 @@
-# Logs
-logs
-*.log
+# ==============================================================================
+# CampusCare - Multi-Platform Git Ignore
+# ==============================================================================
+
+# Node / Dependencies
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+logs/
+*.log
 
-node_modules
-dist
-dist-ssr
-dist-windows
-dist-apk
+# Web Build Outputs
+dist/
+dist-ssr/
+dist-windows/
+dist-apk/
+build/
+
+# Application Release Packages
 releases/windows/
 releases/android/*.apk
 releases/web/
-build
-*.local
-.env
 
-# Editor directories and files
+# Environment Variables & Local Secrets
+.env
+.env.local
+.env.*.local
+*.local
+
+# IDE & Editor Configurations
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Android Native Build Artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+
+# iOS Native Build Artifacts
+ios/App/App/public/
+ios/capacitor-cordova-ios-plugins/
+ios/App/Pods/
+ios/App/Podfile.lock
+
+# Qt Desktop Client Build Artifacts
+qt-client/build/

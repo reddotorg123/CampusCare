@@ -10,12 +10,19 @@ export function CampusCareCreateTicket({
   onSubmitTicket,
   onBack 
 }) {
-  const targetSchool = currentSchool || (schools.length > 0 ? schools[0] : null);
-  const [selectedSchoolId, setSelectedSchoolId] = useState(targetSchool?.id || '');
-  const [selectedLabId, setSelectedLabId] = useState(currentLab?.id || targetSchool?.labs?.[0]?.id || 'lab-main');
+  // Fetch school from account details by default
+  const userSchool = schools.find(s => 
+    (currentUser?.schoolId && s.id === currentUser.schoolId) ||
+    (currentUser?.schoolName && s.name?.toLowerCase() === currentUser.schoolName?.toLowerCase())
+  ) || currentSchool || (schools.length > 0 ? schools[0] : null) || {
+    id: currentUser?.schoolId || 'sch-default',
+    name: currentUser?.schoolName || 'Campus School'
+  };
+
+  const [selectedSchoolId, setSelectedSchoolId] = useState(userSchool?.id || '');
+  const [selectedLabId, setSelectedLabId] = useState(currentLab?.id || userSchool?.labs?.[0]?.id || 'lab-main');
   const [selectedSystemCode, setSelectedSystemCode] = useState(currentDevice?.code || 'PC-01');
   const [category, setCategory] = useState('Hardware Issue');
-  const [subCategory, setSubCategory] = useState('Monitor / Screen Malfunction');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('medium'); // 'low' | 'medium' | 'high'
   const [attachments, setAttachments] = useState([]);
@@ -23,39 +30,45 @@ export function CampusCareCreateTicket({
 
   const fileInputRef = useRef(null);
 
-  const activeSchool = schools.find(s => s.id === selectedSchoolId) || targetSchool;
+  const activeSchool = schools.find(s => s.id === selectedSchoolId) || userSchool;
   const availableLabs = activeSchool?.labs || [
     { id: 'lab-main', name: 'Main Computer Lab' }
   ];
 
-  // Real Image Upload / Camera Handler
+  // Safe Image Upload / Camera Handler (protected against native crash)
   const handleFileChange = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+    try {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
 
-    setIsProcessingImage(true);
+      setIsProcessingImage(true);
 
-    files.forEach(file => {
-      if (!file.type.startsWith('image/')) return;
+      files.forEach(file => {
+        if (!file.type.startsWith('image/')) return;
 
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        setAttachments(prev => [
-          ...prev,
-          {
-            id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-            name: file.name,
-            size: (file.size / 1024).toFixed(1) + ' KB',
-            type: file.type,
-            url: uploadEvent.target.result // Base64 data URL
-          }
-        ]);
-        setIsProcessingImage(false);
-      };
-      reader.readAsDataURL(file);
-    });
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) => {
+          setAttachments(prev => [
+            ...prev,
+            {
+              id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              name: file.name,
+              size: (file.size / 1024).toFixed(1) + ' KB',
+              type: file.type,
+              url: uploadEvent.target.result
+            }
+          ]);
+          setIsProcessingImage(false);
+        };
+        reader.onerror = () => setIsProcessingImage(false);
+        reader.readAsDataURL(file);
+      });
 
-    e.target.value = '';
+      e.target.value = '';
+    } catch (err) {
+      console.error('File upload error:', err);
+      setIsProcessingImage(false);
+    }
   };
 
   const handleRemoveAttachment = (id) => {
@@ -79,13 +92,13 @@ export function CampusCareCreateTicket({
       labName: labName,
       systemId: `dev-${selectedSystemCode.toLowerCase()}`,
       systemName: selectedSystemCode,
-      title: subCategory || category,
-      problem: subCategory || category,
+      title: `${category} (${selectedSystemCode})`,
+      problem: category,
       description: description || 'Issue reported on equipment.',
       priority: priority,
       status: 'created',
       category: category,
-      subCategory: subCategory,
+      subCategory: category,
       reportedBy: currentUser?.name ? `${currentUser.name} (${currentUser.role === 'school_staff' ? 'School Staff' : 'User'})` : 'School Staff',
       reporterPhone: currentUser?.phone || '+91 98765 43210',
       assignedTo: 'Unassigned',
@@ -214,20 +227,7 @@ export function CampusCareCreateTicket({
           </select>
         </div>
 
-        {/* Issue Title / Subcategory */}
-        <div className="form-group" style={{ marginBottom: '8px' }}>
-          <label className="form-label">
-            Problem Summary <span style={{ color: 'var(--status-issue)' }}>*</span>
-          </label>
-          <input 
-            type="text"
-            value={subCategory}
-            onChange={(e) => setSubCategory(e.target.value)}
-            className="form-input"
-            placeholder="e.g. No display output, CPU not turning on"
-            required
-          />
-        </div>
+
 
         {/* Description */}
         <div className="form-group" style={{ marginBottom: '8px' }}>
@@ -287,22 +287,17 @@ export function CampusCareCreateTicket({
           </div>
         </div>
 
-        {/* REAL IMAGE UPLOAD / CAMERA SECTION */}
+        {/* COMPACT IMAGE UPLOAD / CAMERA SECTION */}
         <div style={{
           background: '#f8fafc',
           border: '1.5px dashed #cbd5e1',
           borderRadius: '10px',
-          padding: '14px',
+          padding: '12px',
           marginBottom: '10px'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--navy-900)' }}>
-                Upload Equipment Photo
-              </div>
-              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                Attach photo of damaged screen, cable, or error code
-              </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--navy-900)' }}>
+              Equipment Photo ({attachments.length})
             </div>
             
             <button
@@ -323,7 +318,7 @@ export function CampusCareCreateTicket({
               }}
             >
               <Camera size={14} />
-              <span>Take / Upload Photo</span>
+              <span>Attach Photo</span>
             </button>
           </div>
 
@@ -332,7 +327,6 @@ export function CampusCareCreateTicket({
             ref={fileInputRef} 
             accept="image/*" 
             multiple 
-            capture="environment" 
             onChange={handleFileChange} 
             style={{ display: 'none' }} 
           />
@@ -404,19 +398,7 @@ export function CampusCareCreateTicket({
                 </div>
               ))}
             </div>
-          ) : (
-            <div style={{ 
-              fontSize: '11px', 
-              color: 'var(--text-muted)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px', 
-              marginTop: '4px' 
-            }}>
-              <ImageIcon size={14} color="#94a3b8" />
-              <span>No image attached. Tap "Take / Upload Photo" to add equipment pictures.</span>
-            </div>
-          )}
+          ) : null}
         </div>
 
         {/* Submit Action */}

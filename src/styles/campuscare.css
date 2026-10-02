@@ -120,6 +120,9 @@ body, html {
   flex-direction: column;
   background-color: var(--bg-surface);
   padding-bottom: 74px; /* Space for BottomNav */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
 }
 
 .screen-scroll-container.no-bottom-nav {

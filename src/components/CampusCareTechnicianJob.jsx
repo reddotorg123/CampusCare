@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
 import { 
   ArrowLeft, 
-  MoreVertical, 
   Navigation, 
   Phone, 
-  Calendar, 
-  CheckSquare, 
-  Square, 
-  ChevronDown, 
   Check, 
   AlertTriangle, 
   Zap, 
   Inbox, 
-  UserCheck, 
   Clock, 
-  XCircle, 
-  RotateCcw
+  RotateCcw,
+  Plus,
+  Trash2,
+  Image as ImageIcon,
+  ZoomIn,
+  X,
+  Package,
+  Hourglass,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 
 export function CampusCareTechnicianJob({ 
@@ -36,9 +38,9 @@ export function CampusCareTechnicianJob({
     t.status === 'open' || !t.technician || t.technician === 'Unassigned'
   );
 
-  // Active Assigned Tickets: Assigned to this technician and not resolved
+  // Active Assigned Tickets: Assigned to this technician and not resolved/closed
   const myActiveTickets = tickets.filter(t => 
-    (t.technician === currentTechName || t.status === 'in_progress') && 
+    (t.technician === currentTechName || t.status === 'in_progress' || t.status === 'pending') && 
     t.status !== 'resolved' && 
     t.status !== 'closed'
   );
@@ -48,12 +50,80 @@ export function CampusCareTechnicianJob({
     return (ticket?.id) || (myActiveTickets[0]?.id) || (tickets[0]?.id) || null;
   });
   const [activeTab, setActiveTab] = useState('job'); // 'job' | 'checklist' | 'parts'
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
   const [releaseReason, setReleaseReason] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
 
+  // Lightbox for attached equipment photos
+  const [lightboxPhoto, setLightboxPhoto] = useState(null);
+
+  // Custom Parts Management
+  const [customParts, setCustomParts] = useState([
+    { id: 1, name: 'High-speed HDMI Cable (1.5m)', qty: 1, partNo: 'HD-1092' }
+  ]);
+  const [newPartName, setNewPartName] = useState('');
+  const [newPartQty, setNewPartQty] = useState('1');
+  const [newPartNo, setNewPartNo] = useState('');
+
+  // Local checklist state fallback to ensure immediate UI feedback
+  const [localChecklistMap, setLocalChecklistMap] = useState({});
+
   const activeTicket = tickets.find(t => t.id === selectedTicketId) || myActiveTickets[0] || openPoolTickets[0] || null;
+
+  const defaultChecklist = [
+    { id: 1, text: 'Check wall power socket and surge protector supply', checked: false },
+    { id: 2, text: 'Verify HDMI/VGA cable connection firmly seated', checked: false },
+    { id: 3, text: 'Swap with known-good monitor from adjacent bench', checked: false },
+    { id: 4, text: 'Inspect motherboard diagnostic beeps & LED indicators', checked: false },
+    { id: 5, text: 'Re-seat RAM stick and clear CMOS if required', checked: false },
+    { id: 6, text: 'Boot system and verify Windows desktop resolution', checked: false }
+  ];
+
+  const getTicketChecklist = () => {
+    if (!activeTicket) return defaultChecklist;
+    if (localChecklistMap[activeTicket.id]) {
+      return localChecklistMap[activeTicket.id];
+    }
+    if (activeTicket.checklist && activeTicket.checklist.length > 0) {
+      return activeTicket.checklist;
+    }
+    return defaultChecklist;
+  };
+
+  const currentChecklist = getTicketChecklist();
+  const completedChecklistCount = currentChecklist.filter(c => c.checked).length;
+
+  const handleToggleCheck = (itemId) => {
+    if (!activeTicket) return;
+    const updated = currentChecklist.map(item => {
+      if (item.id === itemId) return { ...item, checked: !item.checked };
+      return item;
+    });
+    setLocalChecklistMap(prev => ({ ...prev, [activeTicket.id]: updated }));
+
+    if (onToggleChecklistItem) {
+      onToggleChecklistItem(activeTicket.id, itemId);
+    }
+  };
+
+  const handleAddPart = (e) => {
+    e?.preventDefault();
+    if (!newPartName.trim()) return;
+    const item = {
+      id: Date.now(),
+      name: newPartName.trim(),
+      qty: parseInt(newPartQty, 10) || 1,
+      partNo: newPartNo.trim() || 'N/A'
+    };
+    setCustomParts(prev => [...prev, item]);
+    setNewPartName('');
+    setNewPartQty('1');
+    setNewPartNo('');
+  };
+
+  const handleRemovePart = (id) => {
+    setCustomParts(prev => prev.filter(p => p.id !== id));
+  };
 
   const handleCall = () => {
     if (activeTicket?.reporterPhone) {
@@ -91,15 +161,36 @@ export function CampusCareTechnicianJob({
 
   const handleMarkResolved = (ticketId) => {
     if (onUpdateStatus) {
-      onUpdateStatus(ticketId, 'resolved');
+      onUpdateStatus(ticketId, 'resolved', 'Signed off with parts & diagnostic checklist complete', { parts: customParts });
     }
-    setActionSuccess('Ticket marked as Resolved & Signed Off!');
+    setActionSuccess('✓ Ticket marked as Resolved & Signed Off!');
     setTimeout(() => setActionSuccess(''), 3000);
   };
 
+  const handleMarkPending = (ticketId) => {
+    if (onUpdateStatus) {
+      onUpdateStatus(ticketId, 'pending', 'Marked as Pending: Waiting for spares/replacement parts', { 
+        parts: customParts,
+        pendingReason: 'Awaiting replacement parts & spares delivery'
+      });
+    }
+    setActionSuccess('⏳ Ticket marked as Pending (Awaiting Spares/Parts)!');
+    setTimeout(() => setActionSuccess(''), 3500);
+  };
+
+  // Extract photos/attachments from active ticket
+  const ticketAttachments = activeTicket?.attachments || (activeTicket?.photos ? activeTicket.photos.map((p, i) => ({ name: `Photo ${i + 1}`, url: p })) : []);
+
   return (
-    <div className="screen-scroll-container no-bottom-nav">
-      {/* Header */}
+    <div 
+      className="screen-scroll-container no-bottom-nav"
+      style={{
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehaviorY: 'contain',
+        touchAction: 'pan-y'
+      }}
+    >
+      {/* Header: Clean, professional, On Duty badge removed */}
       <div className="screen-header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button className="icon-button" onClick={onBack} title="Back">
@@ -109,11 +200,6 @@ export function CampusCareTechnicianJob({
             <span className="screen-header-title">Field Engineer Portal</span>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{currentTechName}</div>
           </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '12px', background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }}>
-            🟢 On Duty
-          </span>
         </div>
       </div>
 
@@ -158,16 +244,16 @@ export function CampusCareTechnicianJob({
               padding: '8px',
               borderRadius: '8px',
               border: 'none',
-              background: topMode === 'my_jobs' ? '#ffffff' : 'transparent',
-              color: topMode === 'my_jobs' ? 'var(--navy-900)' : '#64748b',
               fontSize: '12px',
               fontWeight: '700',
               cursor: 'pointer',
-              boxShadow: topMode === 'my_jobs' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+              background: topMode === 'my_jobs' ? '#ffffff' : 'transparent',
+              color: topMode === 'my_jobs' ? '#1e293b' : '#64748b',
+              boxShadow: topMode === 'my_jobs' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s ease'
             }}
           >
-            <UserCheck size={14} color={topMode === 'my_jobs' ? '#2563eb' : '#64748b'} />
-            <span>My Active Jobs ({myActiveTickets.length})</span>
+            <span>My Assigned ({myActiveTickets.length})</span>
           </button>
 
           <button
@@ -180,15 +266,16 @@ export function CampusCareTechnicianJob({
               padding: '8px',
               borderRadius: '8px',
               border: 'none',
-              background: topMode === 'open_pool' ? '#ffffff' : 'transparent',
-              color: topMode === 'open_pool' ? '#b45309' : '#64748b',
               fontSize: '12px',
               fontWeight: '700',
               cursor: 'pointer',
-              boxShadow: topMode === 'open_pool' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+              background: topMode === 'open_pool' ? '#ffffff' : 'transparent',
+              color: topMode === 'open_pool' ? '#1e293b' : '#64748b',
+              boxShadow: topMode === 'open_pool' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s ease'
             }}
           >
-            <Inbox size={14} color={topMode === 'open_pool' ? '#d97706' : '#64748b'} />
+            <Zap size={14} color={topMode === 'open_pool' ? '#059669' : '#64748b'} />
             <span>Open Pool ({openPoolTickets.length})</span>
           </button>
         </div>
@@ -196,22 +283,9 @@ export function CampusCareTechnicianJob({
 
       {/* ==================== VIEW 1: OPEN ISSUES POOL ==================== */}
       {topMode === 'open_pool' && (
-        <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{
-            background: '#fffbeb',
-            border: '1px solid #fde68a',
-            padding: '10px 12px',
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '8px',
-            fontSize: '11px',
-            color: '#92400e'
-          }}>
-            <Zap size={16} color="#d97706" style={{ flexShrink: 0, marginTop: '2px' }} />
-            <span>
-              <strong>Open Dispatch Queue:</strong> These reported issues are unassigned or released by another engineer. Any field engineer can accept and claim them.
-            </span>
+        <div style={{ padding: '8px 16px 16px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', padding: '0 2px' }}>
+            Unassigned school tickets awaiting an engineer to claim:
           </div>
 
           {openPoolTickets.length === 0 ? (
@@ -219,34 +293,37 @@ export function CampusCareTechnicianJob({
               background: '#ffffff',
               border: '1px dashed #cbd5e1',
               borderRadius: '12px',
-              padding: '36px 16px',
+              padding: '32px 16px',
               textAlign: 'center',
-              color: '#64748b'
+              color: '#64748b',
+              marginTop: '12px'
             }}>
-              <Check size={32} color="#10b981" style={{ margin: '0 auto 8px auto' }} />
-              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>All Clear! No Open Issues</div>
-              <p style={{ fontSize: '11px', marginTop: '4px' }}>All reported issues are currently assigned or resolved.</p>
+              <Inbox size={32} color="#64748b" style={{ margin: '0 auto 8px auto' }} />
+              <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>No Open Tickets</div>
+              <p style={{ fontSize: '11px', marginTop: '4px' }}>
+                All campus issues are currently assigned to engineers or resolved.
+              </p>
             </div>
           ) : (
             openPoolTickets.map(ticketItem => {
               const ticketNum = ticketItem.ticketNumber || ticketItem.id;
               return (
-                <div 
+                <div
                   key={ticketItem.id}
                   style={{
                     background: '#ffffff',
-                    border: '1px solid var(--border-light)',
+                    border: '1px solid #e2e8f0',
                     borderRadius: '12px',
-                    padding: '14px',
-                    boxShadow: 'var(--shadow-sm)',
+                    padding: '12px 14px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '10px'
+                    gap: '8px',
+                    boxShadow: 'var(--shadow-sm)'
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--navy-900)' }}>
                           {ticketNum}
                         </span>
@@ -386,12 +463,12 @@ export function CampusCareTechnicianJob({
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '16px', fontWeight: '800', color: 'var(--navy-900)' }}>
                             {activeTicket.ticketNumber || activeTicket.id}
                           </span>
-                          <span className={`status-pill ${activeTicket.status === 'resolved' ? 'working' : 'under_service'}`} style={{ fontSize: '10px' }}>
-                            {activeTicket.status === 'resolved' ? 'Resolved' : 'In Progress (Assigned to You)'}
+                          <span className={`status-pill ${activeTicket.status === 'resolved' ? 'working' : activeTicket.status === 'pending' ? 'under_service' : 'under_service'}`} style={{ fontSize: '10px' }}>
+                            {activeTicket.status === 'resolved' ? 'Resolved' : activeTicket.status === 'pending' ? 'Pending (Awaiting Parts)' : 'In Progress (Assigned)'}
                           </span>
                         </div>
                         <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)', marginTop: '4px' }}>
@@ -471,7 +548,7 @@ export function CampusCareTechnicianJob({
                       className={`segmented-tab-btn ${activeTab === 'checklist' ? 'active' : ''}`}
                       onClick={() => setActiveTab('checklist')}
                     >
-                      Checklist ({(activeTicket.checklist || []).filter(c => c.checked).length}/{(activeTicket.checklist || []).length || 5})
+                      Checklist ({completedChecklistCount}/{currentChecklist.length})
                     </button>
                     <button 
                       className={`segmented-tab-btn ${activeTab === 'parts' ? 'active' : ''}`}
@@ -481,7 +558,7 @@ export function CampusCareTechnicianJob({
                     </button>
                   </div>
 
-                  {/* TAB 1: JOB DETAILS */}
+                  {/* TAB 1: JOB DETAILS & ATTACHED PHOTOS */}
                   {activeTab === 'job' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div style={{ 
@@ -495,11 +572,93 @@ export function CampusCareTechnicianJob({
                           Reported Incident
                         </div>
                         <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>
-                          {activeTicket.issue || activeTicket.title || 'Monitor Display Failure'}
+                          {activeTicket.issue || activeTicket.title || 'Reported Hardware Fault'}
                         </div>
                         <div style={{ fontSize: '11.5px', color: 'var(--text-body)', marginTop: '4px', lineHeight: '1.4' }}>
-                          {activeTicket.notes || activeTicket.description || 'Display does not power on during morning computer batch.'}
+                          {activeTicket.notes || activeTicket.description || 'Diagnosis required on site.'}
                         </div>
+                      </div>
+
+                      {/* Attached Equipment Photos (Uploaded by School Staff) */}
+                      <div style={{ 
+                        background: '#ffffff', 
+                        border: '1px solid var(--border-light)', 
+                        borderRadius: '12px', 
+                        padding: '14px',
+                        boxShadow: 'var(--shadow-sm)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                          <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--navy-700)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <ImageIcon size={14} color="var(--blue-600)" />
+                            <span>Staff Uploaded Photos ({ticketAttachments.length})</span>
+                          </div>
+                          {ticketAttachments.length > 0 && (
+                            <span style={{ fontSize: '10px', color: 'var(--blue-600)', fontWeight: 600 }}>
+                              Tap to enlarge
+                            </span>
+                          )}
+                        </div>
+
+                        {ticketAttachments.length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                            {ticketAttachments.map((att, idx) => (
+                              <div 
+                                key={idx}
+                                onClick={() => setLightboxPhoto(att)}
+                                style={{
+                                  position: 'relative',
+                                  width: '84px',
+                                  height: '84px',
+                                  borderRadius: '8px',
+                                  overflow: 'hidden',
+                                  border: '1px solid var(--border-mid)',
+                                  cursor: 'pointer',
+                                  boxShadow: 'var(--shadow-sm)'
+                                }}
+                              >
+                                <img 
+                                  src={att.url} 
+                                  alt={att.name || `Photo ${idx + 1}`} 
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                />
+                                <div style={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  background: 'rgba(0,0,0,0.25)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  opacity: 0,
+                                  transition: 'opacity 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                                onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}
+                                >
+                                  <ZoomIn size={20} color="#ffffff" />
+                                </div>
+                                <div style={{
+                                  position: 'absolute',
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  background: 'rgba(15, 23, 42, 0.8)',
+                                  color: '#ffffff',
+                                  fontSize: '8.5px',
+                                  padding: '2px 4px',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
+                                }}>
+                                  {att.name || `Photo ${idx + 1}`}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', padding: '6px 0' }}>
+                            No equipment photos were attached by the reporting staff.
+                          </div>
+                        )}
                       </div>
 
                       {/* Workstation Hardware Info */}
@@ -525,7 +684,7 @@ export function CampusCareTechnicianJob({
                     </div>
                   )}
 
-                  {/* TAB 2: CHECKLIST */}
+                  {/* TAB 2: INTERACTIVE CHECKLIST */}
                   {activeTab === 'checklist' && (
                     <div style={{ 
                       background: '#ffffff', 
@@ -534,39 +693,45 @@ export function CampusCareTechnicianJob({
                       padding: '14px',
                       boxShadow: 'var(--shadow-sm)'
                     }}>
-                      <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--navy-900)', marginBottom: '10px' }}>
-                        Diagnostic & Repair Checklist
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--navy-900)' }}>
+                          Diagnostic & Repair Checklist
+                        </div>
+                        <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: '700' }}>
+                          {completedChecklistCount} of {currentChecklist.length} Complete
+                        </span>
                       </div>
+
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {[
-                          { id: 1, text: 'Check wall power socket and surge protector supply' },
-                          { id: 2, text: 'Verify HDMI/VGA cable connection firmly seated' },
-                          { id: 3, text: 'Swap with known-good monitor from adjacent bench' },
-                          { id: 4, text: 'Inspect motherboard diagnostic beeps & LED indicators' },
-                          { id: 5, text: 'Re-seat RAM stick and clear CMOS if required' },
-                          { id: 6, text: 'Boot system and verify Windows desktop resolution' }
-                        ].map((item, idx) => (
+                        {currentChecklist.map((item) => (
                           <div 
                             key={item.id}
-                            onClick={() => onToggleChecklistItem && onToggleChecklistItem(activeTicket.id, item.id)}
+                            onClick={() => handleToggleCheck(item.id)}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
                               gap: '10px',
-                              padding: '8px 10px',
+                              padding: '10px 12px',
                               borderRadius: '8px',
-                              background: '#f8fafc',
-                              border: '1px solid #e2e8f0',
-                              cursor: 'pointer'
+                              background: item.checked ? '#f0fdf4' : '#f8fafc',
+                              border: item.checked ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
                             }}
                           >
-                            <input 
-                              type="checkbox" 
-                              checked={idx < 2} 
-                              readOnly 
-                              style={{ width: '16px', height: '16px', accentColor: '#2563eb' }}
-                            />
-                            <span style={{ fontSize: '12px', color: '#1e293b' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {item.checked ? (
+                                <CheckSquare size={18} color="#16a34a" />
+                              ) : (
+                                <Square size={18} color="#94a3b8" />
+                              )}
+                            </div>
+                            <span style={{ 
+                              fontSize: '12px', 
+                              color: item.checked ? '#15803d' : '#1e293b',
+                              textDecoration: item.checked ? 'line-through' : 'none',
+                              fontWeight: item.checked ? '600' : '400'
+                            }}>
                               {item.text}
                             </span>
                           </div>
@@ -575,9 +740,10 @@ export function CampusCareTechnicianJob({
                     </div>
                   )}
 
-                  {/* TAB 3: PARTS & SIGNOFF */}
+                  {/* TAB 3: CUSTOM PARTS & SIGNOFF / PENDING ACTIONS */}
                   {activeTab === 'parts' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {/* Parts Required / Used Form & List */}
                       <div style={{ 
                         background: '#ffffff', 
                         border: '1px solid var(--border-light)', 
@@ -585,15 +751,166 @@ export function CampusCareTechnicianJob({
                         padding: '14px',
                         boxShadow: 'var(--shadow-sm)'
                       }}>
-                        <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--navy-900)', marginBottom: '8px' }}>
-                          Parts Replaced / Used
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                          <Package size={15} color="var(--navy-800)" />
+                          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--navy-900)' }}>
+                            Custom Required Parts & Spares
+                          </div>
                         </div>
-                        <div style={{ padding: '8px 10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '11px', color: '#475569' }}>
-                          • 1x High-speed HDMI Cable (1.5m, Part #HD-1092)
+
+                        {/* List of Custom Parts */}
+                        {customParts.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
+                            {customParts.map(part => (
+                              <div 
+                                key={part.id}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '8px 10px',
+                                  background: '#f8fafc',
+                                  borderRadius: '8px',
+                                  border: '1px solid #e2e8f0',
+                                  fontSize: '11px'
+                                }}
+                              >
+                                <div>
+                                  <strong style={{ color: '#0f172a' }}>{part.qty}x {part.name}</strong>
+                                  {part.partNo && part.partNo !== 'N/A' && (
+                                    <span style={{ color: '#64748b', marginLeft: '6px' }}>(Part #: {part.partNo})</span>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePart(part.id)}
+                                  title="Remove part"
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#ef4444',
+                                    cursor: 'pointer',
+                                    padding: '4px'
+                                  }}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', marginBottom: '12px' }}>
+                            No spare parts added yet. Add custom parts below if required.
+                          </div>
+                        )}
+
+                        {/* Add Custom Part Inputs */}
+                        <div style={{
+                          background: '#f1f5f9',
+                          padding: '10px',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px'
+                        }}>
+                          <div style={{ fontSize: '11px', fontWeight: '700', color: '#334155' }}>
+                            Add Custom Spare Part
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
+                            <input 
+                              type="text"
+                              placeholder="Part description (e.g. DDR4 8GB RAM)"
+                              value={newPartName}
+                              onChange={e => setNewPartName(e.target.value)}
+                              style={{
+                                padding: '7px 9px',
+                                borderRadius: '6px',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '11px',
+                                background: '#ffffff'
+                              }}
+                            />
+                            <input 
+                              type="number"
+                              min="1"
+                              placeholder="Qty"
+                              value={newPartQty}
+                              onChange={e => setNewPartQty(e.target.value)}
+                              style={{
+                                padding: '7px 9px',
+                                borderRadius: '6px',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '11px',
+                                background: '#ffffff'
+                              }}
+                            />
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
+                            <input 
+                              type="text"
+                              placeholder="Part/Model # (optional)"
+                              value={newPartNo}
+                              onChange={e => setNewPartNo(e.target.value)}
+                              style={{
+                                padding: '7px 9px',
+                                borderRadius: '6px',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '11px',
+                                background: '#ffffff'
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAddPart}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px',
+                                background: 'var(--navy-800)',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '7px 10px',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Plus size={13} />
+                              <span>Add</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Final Resolution Button */}
+                      {/* Action 1: Pending Option (Waiting for Parts/Spares) */}
+                      <button
+                        onClick={() => handleMarkPending(activeTicket.id)}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '10px',
+                          background: '#fffbeb',
+                          border: '1px solid #f59e0b',
+                          color: '#b45309',
+                          fontSize: '13px',
+                          fontWeight: '700',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          cursor: 'pointer',
+                          boxShadow: '0 1px 3px rgba(245, 158, 11, 0.15)'
+                        }}
+                      >
+                        <Hourglass size={16} color="#d97706" />
+                        <span>Mark as Pending (Spares Required)</span>
+                      </button>
+
+                      {/* Action 2: Sign-Off & Complete Service */}
                       <button
                         onClick={() => handleMarkResolved(activeTicket.id)}
                         style={{
@@ -622,6 +939,71 @@ export function CampusCareTechnicianJob({
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* Lightbox Modal for Photo Full View */}
+      {lightboxPhoto && (
+        <div 
+          onClick={() => setLightboxPhoto(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 120,
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <div 
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '92%',
+              maxHeight: '80%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
+            }}
+          >
+            <button
+              onClick={() => setLightboxPhoto(null)}
+              style={{
+                position: 'absolute',
+                top: '-40px',
+                right: '0',
+                background: '#ffffff',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={18} color="#0f172a" />
+            </button>
+            <img 
+              src={lightboxPhoto.url} 
+              alt={lightboxPhoto.name}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '75vh',
+                borderRadius: '12px',
+                objectFit: 'contain',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+              }}
+            />
+            <div style={{ color: '#ffffff', fontSize: '12px', fontWeight: '600', marginTop: '10px' }}>
+              {lightboxPhoto.name}
+            </div>
+          </div>
         </div>
       )}
 
